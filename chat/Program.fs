@@ -1,6 +1,5 @@
-﻿namespace skillaz_secure_chat
+﻿namespace chat
 
-open System
 open System.Net
 open System.Text
 open System.Text.Json
@@ -10,7 +9,7 @@ open Avalonia.Themes.Fluent
 open Avalonia.FuncUI.Hosts
 open Elmish
 open Avalonia.FuncUI.Elmish
-open skillaz_secure_chat.Message
+open chat.Message
 
 type MainWindow() as this =
     inherit HostWindow()

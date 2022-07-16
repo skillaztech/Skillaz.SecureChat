@@ -1,4 +1,4 @@
-namespace skillaz_secure_chat
+namespace chat
 
 open System
 

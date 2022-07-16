@@ -1,4 +1,4 @@
-﻿namespace skillaz_secure_chat
+﻿namespace chat
 
 open System
 open System.IO
@@ -11,7 +11,7 @@ open Avalonia.Media
 open Avalonia.Controls
 open Avalonia.FuncUI.DSL
 open Avalonia.Layout
-open skillaz_secure_chat.Message
+open chat.Message
 
 module Chat =
     
