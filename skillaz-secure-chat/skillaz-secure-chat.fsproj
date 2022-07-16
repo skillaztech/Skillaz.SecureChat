@@ -7,6 +7,7 @@
 
     <ItemGroup>
         <Compile Include="Message.fs" />
+        <Compile Include="P2PNetwork.fs" />
         <Compile Include="Chat.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>

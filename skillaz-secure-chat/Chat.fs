@@ -1,6 +1,7 @@
 ﻿namespace skillaz_secure_chat
 
 open System
+open System.Net
 open Elmish
 open Avalonia.FuncUI
 open Avalonia.Media
@@ -16,6 +17,11 @@ module Chat =
         MessageInput: string
         MessagesList: Message list
     }
+        
+    type Msg =
+        | P2pMessageReceived of Message
+        | TextChanged of string
+        | SendMessage
     
     let init =
         let model = {
@@ -34,17 +40,19 @@ module Chat =
         }
         
         model, Cmd.none
-        
-    type Msg =
-        | TextChanged of string
-        | SendMessage
     
     let update msg model =
         match msg with
+        | P2pMessageReceived m ->
+            { model with MessagesList = model.MessagesList @ [m] }, Cmd.none
+        | SendMessage ->
+            use c = P2PNetwork.client IPAddress.Loopback 5001
+            use stream = c.GetStream()
+            stream.Write(ReadOnlySpan<byte>.Empty)
+            stream.Flush()
+            { model with MessageInput = "" }, Cmd.none
         | TextChanged t ->
             { model with MessageInput = t }, Cmd.none
-        | SendMessage ->
-            { model with MessageInput = "" }, Cmd.none
 
     let view model dispatch =
         Grid.create [

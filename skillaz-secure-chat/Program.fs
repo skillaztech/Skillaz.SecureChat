@@ -1,11 +1,14 @@
 ﻿namespace skillaz_secure_chat
 
+open System
+open System.Net
 open Avalonia
 open Avalonia.Controls.ApplicationLifetimes
 open Avalonia.Themes.Fluent
 open Avalonia.FuncUI.Hosts
 open Elmish
 open Avalonia.FuncUI.Elmish
+open skillaz_secure_chat.Message
 
 type MainWindow() as this =
     inherit HostWindow()
@@ -17,9 +20,19 @@ type MainWindow() as this =
         //this.VisualRoot.VisualRoot.Renderer.DrawFps <- true
         //this.VisualRoot.VisualRoot.Renderer.DrawDirtyRects <- true
         
+        let p2p model =
+            let sub dispatch =
+                let invoke buf read =
+                    Chat.Msg.P2pMessageReceived { Sender = ""; Message = ""; DateTime = DateTime() } |> dispatch
+                    ()
+                
+                let listener = P2PNetwork.listener IPAddress.Loopback 5002
+                P2PNetwork.listenForPackage listener invoke |> Async.Start
+            Cmd.ofSub sub
+        
         Program.mkProgram (fun () -> Chat.init) Chat.update Chat.view
         |> Program.withHost this
-//        |> Program.withSubscription p2p
+        |> Program.withSubscription p2p
         |> Program.withConsoleTrace
         |> Program.run
         
