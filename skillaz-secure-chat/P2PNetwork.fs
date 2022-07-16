@@ -15,8 +15,8 @@ module P2PNetwork =
         tcp.Start()
         let! tcpClient = tcp.AcceptTcpClientAsync() |> Async.AwaitTask
         let networkStream = tcpClient.GetStream()
-        let buffer = Array.zeroCreate 256
-        let read = networkStream.Read(buffer, 0, 256)
+        let buffer = Array.zeroCreate tcpClient.ReceiveBufferSize
+        let read = networkStream.Read(buffer, 0, tcpClient.ReceiveBufferSize)
         dispatch buffer read
         do! listenForPackage tcp dispatch
     }

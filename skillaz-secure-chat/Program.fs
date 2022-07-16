@@ -2,6 +2,8 @@
 
 open System
 open System.Net
+open System.Text
+open System.Text.Json
 open Avalonia
 open Avalonia.Controls.ApplicationLifetimes
 open Avalonia.Themes.Fluent
@@ -23,7 +25,9 @@ type MainWindow() as this =
         let p2p model =
             let sub dispatch =
                 let invoke buf read =
-                    Chat.Msg.P2pMessageReceived { Sender = ""; Message = ""; DateTime = DateTime() } |> dispatch
+                    let json = Encoding.UTF8.GetString(buf, 0, read)
+                    let msg = JsonSerializer.Deserialize<Message>(json)
+                    Chat.Msg.P2pMessageReceived msg |> dispatch
                     ()
                 
                 let listener = P2PNetwork.listener IPAddress.Loopback 5002

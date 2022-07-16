@@ -1,7 +1,10 @@
 ﻿namespace skillaz_secure_chat
 
 open System
+open System.IO
 open System.Net
+open System.Text
+open System.Text.Json
 open Elmish
 open Avalonia.FuncUI
 open Avalonia.Media
@@ -48,7 +51,13 @@ module Chat =
         | SendMessage ->
             use c = P2PNetwork.client IPAddress.Loopback 5001
             use stream = c.GetStream()
-            stream.Write(ReadOnlySpan<byte>.Empty)
+            let newMsg = {
+                Sender = model.CurrentUser
+                DateTime = DateTime.Now
+                Message = model.MessageInput
+            }
+            let message = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(newMsg))
+            stream.Write(message)
             stream.Flush()
             { model with MessageInput = "" }, Cmd.none
         | TextChanged t ->
