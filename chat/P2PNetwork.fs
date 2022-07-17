@@ -7,6 +7,11 @@ open System.Text
 open System.Text.Json
 
 module P2PNetwork =
+    
+    type TcpPackage =
+        | Ping
+        | Message of byte[]
+    
     let tcpListener ip port =
         let tcp = TcpListener(ip, port)
         tcp.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true)
@@ -15,27 +20,48 @@ module P2PNetwork =
     let tcpClient (ip:IPAddress) port =
         new TcpClient(ip.ToString(), port)
         
-    let rec listenForTcpPackage (tcp:TcpListener) dispatch = async {
+    let rec listenForTcpPackage (tcp:TcpListener) invoke = async {
         let! tcpClient = tcp.AcceptTcpClientAsync() |> Async.AwaitTask
         let networkStream = tcpClient.GetStream()
         
-        let lengthBytes = sizeof<int>
-        let buffer = Array.zeroCreate lengthBytes
-        let! _ = networkStream.ReadAsync(buffer, 0, lengthBytes) |> Async.AwaitTask
+        let length = sizeof<int>
+        let packageTypeBuffer = Array.zeroCreate length
+        let! _ = networkStream.ReadAsync(packageTypeBuffer, 0, length) |> Async.AwaitTask
         
-        let length = BitConverter.ToInt32 buffer
-        let buffer = Array.zeroCreate length
-        let! read = networkStream.ReadAsync(buffer, 0, length) |> Async.AwaitTask
+        let packageType = BitConverter.ToInt32 packageTypeBuffer
         
-        dispatch buffer read tcpClient
-        do! listenForTcpPackage tcp dispatch
+        async {
+            match packageType with
+            | 0 ->
+                invoke TcpPackage.Ping 0 tcpClient
+            | 1 ->
+                let length = sizeof<int>
+                let packageLengthBuffer = Array.zeroCreate length
+                let! _ = networkStream.ReadAsync(packageLengthBuffer, 0, length) |> Async.AwaitTask
+                
+                let length = BitConverter.ToInt32 packageLengthBuffer
+                let packagePayloadBuffer = Array.zeroCreate length
+                let! read = networkStream.ReadAsync(packagePayloadBuffer, 0, length) |> Async.AwaitTask
+                
+                invoke (TcpPackage.Message packagePayloadBuffer) read tcpClient
+            | _ -> failwith "Unknown TCP packet"
+        } |> ignore
+        
+        do! listenForTcpPackage tcp invoke
     }
+    
+    let tcpSendPing (tcp:TcpClient) =
+        let stream = tcp.GetStream()
+        let packageType = BitConverter.GetBytes(0)
+        stream.Write(packageType)
+        stream.Flush()
     
     let tcpSendAsJson (tcp:TcpClient) payload =
         let stream = tcp.GetStream()
-        let msg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload))
-        let length = BitConverter.GetBytes(msg.Length)
-        let bytes = Array.append length msg
+        let msg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload)) |> List.ofArray
+        let packageType = BitConverter.GetBytes(1) |> List.ofArray
+        let length = BitConverter.GetBytes(msg.Length) |> List.ofArray
+        let bytes = packageType @ length @ msg |> Array.ofList
         stream.Write(bytes)
         stream.Flush()
     

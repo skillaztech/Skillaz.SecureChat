@@ -48,6 +48,7 @@ module Chat =
         | TextChanged of string
         | AppendLocalMessage of LocalMessage
         | SendMessage
+        | HealthCheckConnectedEndpoints
         
     let udpSubscription listener dispatch =
         let invoke (payload:byte[]) endpoint =
@@ -55,10 +56,13 @@ module Chat =
         P2PNetwork.listenForUdpPackage listener invoke |> Async.Start
         
     let tcpSubscription listener dispatch =
-        let invoke buf read client =
-            let json = Encoding.UTF8.GetString(buf, 0, read)
-            let msg = JsonSerializer.Deserialize<Message>(json)
-            Msg.RemoteMessageReceived (msg, client) |> dispatch |> ignore
+        let invoke msgType read client =
+            match msgType with
+            | P2PNetwork.TcpPackage.Ping -> ()
+            | P2PNetwork.TcpPackage.Message bytes ->
+                let json = Encoding.UTF8.GetString(bytes, 0, read)
+                let msg = JsonSerializer.Deserialize<Message>(json)
+                Msg.RemoteMessageReceived (msg, client) |> dispatch |> ignore
         P2PNetwork.listenForTcpPackage listener invoke |> Async.Start
     
     let init appSettings =
@@ -105,7 +109,6 @@ module Chat =
                 match client.Client.LocalEndPoint, client.Client.RemoteEndPoint with
                 | (:? IPEndPoint as local), (:? IPEndPoint as remote) -> local.Address = remote.Address
                 | _ -> false
-            
             match isMe with
             | true -> model, Cmd.none
             | false -> model, Cmd.ofMsg <| AppendLocalMessage { Message = m; IsMe = isMe }
@@ -117,10 +120,22 @@ module Chat =
             }
             model.ConnectedEndpoints
             |> List.iter (fun ce ->
-                let client = P2PNetwork.tcpClient ce.Ip.Address ce.Ip.Port
+                use client = P2PNetwork.tcpClient ce.Ip.Address ce.Ip.Port
                 P2PNetwork.tcpSendAsJson client newMsg
             )
             { model with MessageInput = "";  },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
+        | HealthCheckConnectedEndpoints ->
+            let successfullyPingedEndpoints =
+                model.ConnectedEndpoints
+                |> List.where (fun ce ->
+                    try
+                        use client = P2PNetwork.tcpClient ce.Ip.Address ce.Ip.Port
+                        P2PNetwork.tcpSendPing client
+                        true
+                    with
+                    | _ -> false
+                )
+            { model with ConnectedEndpoints = successfullyPingedEndpoints }, Cmd.none
         | AppendLocalMessage m ->
             { model with MessagesList = model.MessagesList @ [m] }, Cmd.none
         | TextChanged t ->
