@@ -101,7 +101,14 @@ module Chat =
                 else model, Cmd.none
             else model, Cmd.none
         | RemoteMessageReceived (m, client) ->
-            model, Cmd.ofMsg <| AppendLocalMessage { Message = m; IsMe = false }
+            let isMe =
+                match client.Client.LocalEndPoint, client.Client.RemoteEndPoint with
+                | (:? IPEndPoint as local), (:? IPEndPoint as remote) -> local.Address = remote.Address
+                | _ -> false
+            
+            match isMe with
+            | true -> model, Cmd.none
+            | false -> model, Cmd.ofMsg <| AppendLocalMessage { Message = m; IsMe = isMe }
         | SendMessage ->
             let newMsg = {
                 Sender = model.AppSettings.MachineName
