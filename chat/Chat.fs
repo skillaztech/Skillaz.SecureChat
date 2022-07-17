@@ -5,6 +5,7 @@ open System.Net
 open System.Net.Sockets
 open System.Text
 open System.Text.Json
+open System.Threading.Tasks
 open Avalonia.Input
 open Elmish
 open Avalonia.FuncUI
@@ -50,6 +51,14 @@ module Chat =
         | SendMessage
         | HealthCheckConnectedEndpoints
         
+    let healthCheckSubscription dispatch =
+        let rec tick dispatch = async {
+            Msg.HealthCheckConnectedEndpoints |> dispatch
+            do! Task.Delay(2000) |> Async.AwaitTask
+            do! tick dispatch
+        }
+        tick dispatch |> Async.Start
+        
     let udpSubscription listener dispatch =
         let invoke (payload:byte[]) endpoint =
             Msg.UdpPackageReceived (payload, endpoint) |> dispatch |> ignore
@@ -79,6 +88,7 @@ module Chat =
         model.TcpListener.Start()
         
         let cmd = Cmd.batch [
+            Cmd.ofSub <| healthCheckSubscription 
             Cmd.ofSub <| udpSubscription model.UdpClient
             Cmd.ofSub <| tcpSubscription model.TcpListener
             Cmd.ofMsg <| UdpSendPackage
