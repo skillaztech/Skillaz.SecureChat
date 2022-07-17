@@ -51,13 +51,13 @@ module P2PNetwork =
     }
     
     let tcpSendPing (tcp:TcpClient) =
-        let stream = tcp.GetStream()
+        use stream = tcp.GetStream()
         let packageType = BitConverter.GetBytes(0)
         stream.Write(packageType)
         stream.Flush()
     
     let tcpSendAsJson (tcp:TcpClient) payload =
-        let stream = tcp.GetStream()
+        use stream = tcp.GetStream()
         let msg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload)) |> List.ofArray
         let packageType = BitConverter.GetBytes(1) |> List.ofArray
         let length = BitConverter.GetBytes(msg.Length) |> List.ofArray
