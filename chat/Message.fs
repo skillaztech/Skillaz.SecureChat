@@ -5,7 +5,7 @@ open System
 module Message =
     type Message = {
         Sender: string
-        Message: string
+        MessageText: string
         DateTime: DateTime
     }
 

@@ -16,21 +16,36 @@ open AppSettings
 
 module Chat =
     
+    type LocalMessage = {
+        Message: Message
+        IsMe: bool
+    }
+    
+    type ConnectedEndpoint = {
+        MachineName: string
+        Ip: IPEndPoint
+    }
+    
+    type UdpPackagePayload = {
+        MachineName: string
+        SecretHash: string
+    }
+    
     type Model = {
         AppSettings: AppSettingsJson.Root
         TcpListener: TcpListener
         UdpClient: UdpClient
-        CurrentUser: string
         MessageInput: string
-        MessagesList: Message list
-        AvailableTcpEndpoints: IPEndPoint list
+        MessagesList: LocalMessage list
+        ConnectedEndpoints: ConnectedEndpoint list
     }
         
     type Msg =
         | UdpSendPackage
         | UdpPackageReceived of byte[] * IPEndPoint
-        | MessageReceived of Message * TcpClient
+        | RemoteMessageReceived of Message * TcpClient
         | TextChanged of string
+        | AppendLocalMessage of LocalMessage
         | SendMessage
         
     let udpSubscription listener dispatch =
@@ -42,7 +57,7 @@ module Chat =
         let invoke buf read client =
             let json = Encoding.UTF8.GetString(buf, 0, read)
             let msg = JsonSerializer.Deserialize<Message>(json)
-            Msg.MessageReceived (msg, client) |> dispatch |> ignore
+            Msg.RemoteMessageReceived (msg, client) |> dispatch |> ignore
         P2PNetwork.listenForTcpPackage listener invoke |> Async.Start
     
     let init appSettings =
@@ -51,8 +66,7 @@ module Chat =
             AppSettings = appSettings
             TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.Port
             UdpClient = P2PNetwork.udpClient IPAddress.Any appSettings.Port
-            AvailableTcpEndpoints = []
-            CurrentUser = appSettings.SecretHash
+            ConnectedEndpoints = []
             MessageInput = ""
             MessagesList = []
         }
@@ -70,31 +84,37 @@ module Chat =
     let update msg model =
         match msg with
         | UdpSendPackage ->
-            let payload = Encoding.UTF8.GetBytes("") // TODO: Inject secret
+            let json = JsonSerializer.Serialize({ MachineName = model.AppSettings.MachineName; SecretHash = model.AppSettings.SecretHash })
+            let payload = Encoding.UTF8.GetBytes(json)
             model.UdpClient.Send(payload, payload.Length, IPEndPoint(IPAddress.Broadcast, model.AppSettings.Port)) |> ignore
             model, Cmd.none
         | UdpPackageReceived (payload, ip) ->
             let payload = Encoding.UTF8.GetString(payload)
-            if payload = "" // TODO: Parse secret
+            let package = JsonSerializer.Deserialize<UdpPackagePayload>(payload)
+            if package.SecretHash = model.AppSettings.SecretHash
             then
-                if model.AvailableTcpEndpoints |> List.exists (fun o -> o = ip) |> not
-                then { model with AvailableTcpEndpoints = ip :: model.AvailableTcpEndpoints }, Cmd.ofMsg UdpSendPackage
+                if model.ConnectedEndpoints |> List.exists (fun o -> o.Ip = ip) |> not
+                then
+                    let connectionEndpoint = { MachineName = package.MachineName; Ip = ip }
+                    { model with ConnectedEndpoints = connectionEndpoint :: model.ConnectedEndpoints }, Cmd.ofMsg UdpSendPackage
                 else model, Cmd.none
             else model, Cmd.none
-        | MessageReceived (m, client) ->
-            { model with MessagesList = model.MessagesList @ [m] }, Cmd.none
+        | RemoteMessageReceived (m, client) ->
+            model, Cmd.ofMsg <| AppendLocalMessage { Message = m; IsMe = false }
         | SendMessage ->
             let newMsg = {
-                Sender = model.CurrentUser
+                Sender = model.AppSettings.MachineName
                 DateTime = DateTime.Now
-                Message = model.MessageInput
+                MessageText = model.MessageInput
             }
-            model.AvailableTcpEndpoints
-            |> List.iter (fun ip ->
-                let client = P2PNetwork.tcpClient ip.Address ip.Port
+            model.ConnectedEndpoints
+            |> List.iter (fun ce ->
+                let client = P2PNetwork.tcpClient ce.Ip.Address ce.Ip.Port
                 P2PNetwork.tcpSendAsJson client newMsg
             )
-            { model with MessageInput = ""; MessagesList = model.MessagesList @ [newMsg] }, Cmd.none
+            { model with MessageInput = "";  },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
+        | AppendLocalMessage m ->
+            { model with MessagesList = model.MessagesList @ [m] }, Cmd.none
         | TextChanged t ->
             { model with MessageInput = t }, Cmd.none
 
@@ -111,8 +131,8 @@ module Chat =
                     StackPanel.orientation Orientation.Horizontal
                     StackPanel.children (
                         TextBlock.create [ TextBlock.text "Соединения: " ]
-                        :: (model.AvailableTcpEndpoints
-                            |> List.map (fun tcp -> TextBlock.create [ TextBlock.text <| tcp.ToString() ])
+                        :: (model.ConnectedEndpoints
+                            |> List.map (fun tcp -> TextBlock.create [ TextBlock.text <| tcp.MachineName ])
                         )
                     )
                 ]
@@ -131,7 +151,7 @@ module Chat =
                                             Border.create [
                                                 Border.borderThickness 2
                                                 Border.cornerRadius 10
-                                                if m.Sender = model.CurrentUser
+                                                if m.IsMe
                                                 then Border.background "#9CF4FF"
                                                 else Border.background "#A9FFDD"
                                                 Border.child (
@@ -145,9 +165,9 @@ module Chat =
                                                                 TextBlock.margin 8
                                                                 TextBlock.fontStyle FontStyle.Italic
                                                                 TextBlock.verticalAlignment VerticalAlignment.Center
-                                                                if m.Sender = model.CurrentUser
+                                                                if m.IsMe
                                                                 then TextBlock.textAlignment TextAlignment.Right
-                                                                TextBlock.text $"{m.Sender}"
+                                                                TextBlock.text $"{m.Message.Sender}"
                                                             ]
                                                             TextBox.create [
                                                                 TextBox.background "Transparent"
@@ -160,16 +180,16 @@ module Chat =
                                                                 TextBox.margin 4
                                                                 TextBox.verticalContentAlignment VerticalAlignment.Center
                                                                 TextBox.verticalAlignment VerticalAlignment.Center
-                                                                if m.Sender = model.CurrentUser
+                                                                if m.IsMe
                                                                 then TextBox.textAlignment TextAlignment.Right
-                                                                TextBox.text $"{m.Message}"
+                                                                TextBox.text $"{m.Message.MessageText}"
                                                             ]
                                                         ]
                                                     ]
                                                 )
                                             ]
                                             
-                                        DataTemplateView<Message>.create dt
+                                        DataTemplateView<LocalMessage>.create dt
                                     )
                                     
                                     ItemsRepeater.dataItems model.MessagesList
@@ -198,7 +218,7 @@ module Chat =
                     Button.horizontalAlignment HorizontalAlignment.Center
                     Button.horizontalContentAlignment HorizontalAlignment.Center
                     Button.content ">"
-                    Button.isEnabled (model.AvailableTcpEndpoints.Length > 0)
+                    Button.isEnabled (model.ConnectedEndpoints.Length > 0)
                     Button.onClick (fun _ -> dispatch SendMessage)
                 ]
             ]
