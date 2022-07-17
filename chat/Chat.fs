@@ -19,7 +19,7 @@ module Chat =
         CurrentUser: string
         MessageInput: string
         MessagesList: Message list
-        TcpClients: TcpClient list
+        TcpClients: IPEndPoint list
     }
         
     type Msg =
@@ -76,8 +76,7 @@ module Chat =
             let payload = Encoding.UTF8.GetString(payload)
             if payload = "" // TODO: Parse secret
             then
-                let client = P2PNetwork.tcpClient ip.Address ip.Port
-                { model with TcpClients = client :: model.TcpClients }, Cmd.none
+                { model with TcpClients = ip :: model.TcpClients }, Cmd.none
             else model, Cmd.none
         | MessageReceived (m, client) ->
             { model with MessagesList = model.MessagesList @ [m] }, Cmd.none
@@ -88,7 +87,8 @@ module Chat =
                 Message = model.MessageInput
             }
             model.TcpClients
-            |> List.iter (fun client ->
+            |> List.iter (fun ip ->
+                let client = P2PNetwork.tcpClient ip.Address ip.Port
                 P2PNetwork.tcpSendAsJson client newMsg
             )
             { model with MessageInput = ""; MessagesList = model.MessagesList @ [newMsg] }, Cmd.none
@@ -108,7 +108,7 @@ module Chat =
                     StackPanel.children (
                         TextBlock.create [ TextBlock.text "Соединения: " ]
                         :: (model.TcpClients
-                            |> List.map (fun tcp -> TextBlock.create [ TextBlock.text <| tcp.Client.RemoteEndPoint.ToString() ])
+                            |> List.map (fun tcp -> TextBlock.create [ TextBlock.text <| tcp.ToString() ])
                         )
                     )
                 ]
