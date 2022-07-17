@@ -12,10 +12,14 @@ open Avalonia.Controls
 open Avalonia.FuncUI.DSL
 open Avalonia.Layout
 open chat.Message
+open AppSettings
 
 module Chat =
     
     type Model = {
+        AppSettings: AppSettingsJson.Root
+        TcpListener: TcpListener
+        UdpClient: UdpClient
         CurrentUser: string
         MessageInput: string
         MessagesList: Message list
@@ -40,27 +44,24 @@ module Chat =
             let msg = JsonSerializer.Deserialize<Message>(json)
             Msg.MessageReceived (msg, client) |> dispatch |> ignore
         P2PNetwork.listenForTcpPackage listener invoke |> Async.Start
-        
-    let port = 63211
-    let udpClient = P2PNetwork.udpClient IPAddress.Any port
-    let tcpListener = P2PNetwork.tcpListener IPAddress.Any port
     
-    let init =
+    let init appSettings =
+        
         let model = {
+            AppSettings = appSettings
+            TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.Port
+            UdpClient = P2PNetwork.udpClient IPAddress.Any appSettings.Port
             AvailableTcpEndpoints = []
-            CurrentUser = "Me"
+            CurrentUser = appSettings.SecretHash
             MessageInput = ""
-            MessagesList = [
-                { Sender = "Me"; Message = "Hello"; DateTime = DateTime() }
-                { Sender = "Hime"; Message = "There\nasdasdad\nasdasdasd\nasdasdads"; DateTime = DateTime() }
-            ]
+            MessagesList = []
         }
         
-        tcpListener.Start()
+        model.TcpListener.Start()
         
         let cmd = Cmd.batch [
-            Cmd.ofSub <| udpSubscription udpClient
-            Cmd.ofSub <| tcpSubscription tcpListener
+            Cmd.ofSub <| udpSubscription model.UdpClient
+            Cmd.ofSub <| tcpSubscription model.TcpListener
             Cmd.ofMsg <| UdpSendPackage
         ]
         
@@ -70,14 +71,13 @@ module Chat =
         match msg with
         | UdpSendPackage ->
             let payload = Encoding.UTF8.GetBytes("") // TODO: Inject secret
-            udpClient.Send(payload, payload.Length, IPEndPoint(IPAddress.Broadcast, port)) |> ignore
+            model.UdpClient.Send(payload, payload.Length, IPEndPoint(IPAddress.Broadcast, model.AppSettings.Port)) |> ignore
             model, Cmd.none
         | UdpPackageReceived (payload, ip) ->
             let payload = Encoding.UTF8.GetString(payload)
             if payload = "" // TODO: Parse secret
             then
-                let alreadyExists = model.AvailableTcpEndpoints |> List.exists (fun o -> o = ip)
-                if not alreadyExists
+                if model.AvailableTcpEndpoints |> List.exists (fun o -> o = ip) |> not
                 then { model with AvailableTcpEndpoints = ip :: model.AvailableTcpEndpoints }, Cmd.ofMsg UdpSendPackage
                 else model, Cmd.none
             else model, Cmd.none

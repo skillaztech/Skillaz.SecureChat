@@ -17,7 +17,9 @@ type MainWindow() as this =
         //this.VisualRoot.VisualRoot.Renderer.DrawFps <- true
         //this.VisualRoot.VisualRoot.Renderer.DrawDirtyRects <- true
         
-        Program.mkProgram (fun () -> Chat.init) Chat.update Chat.view
+        let appSettings = AppSettings.load "appsettings.json"
+        
+        Program.mkProgram (fun () -> Chat.init appSettings) Chat.update Chat.view
         |> Program.withHost this
         |> Program.run
         

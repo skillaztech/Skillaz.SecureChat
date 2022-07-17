@@ -15,6 +15,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="AppSettings.fs" />
         <Compile Include="Message.fs" />
         <Compile Include="P2PNetwork.fs" />
         <Compile Include="Chat.fs" />
@@ -24,6 +25,7 @@
     <ItemGroup>
         <PackageReference Include="Avalonia.Desktop" Version="0.10.16" />
         <PackageReference Include="Avalonia.Diagnostics" Version="0.10.16" />
+        <PackageReference Include="FSharp.Data" Version="4.2.9" />
         <PackageReference Include="JaggerJo.Avalonia.FuncUI" Version="0.5.3" />
         <PackageReference Include="JaggerJo.Avalonia.FuncUI.DSL" Version="0.5.3" />
         <PackageReference Include="JaggerJo.Avalonia.FuncUI.Elmish" Version="0.5.3" />
