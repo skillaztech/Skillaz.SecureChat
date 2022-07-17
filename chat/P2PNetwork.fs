@@ -30,7 +30,7 @@ module P2PNetwork =
         
         let packageType = BitConverter.ToInt32 packageTypeBuffer
         
-        async {
+        do! async {
             match packageType with
             | 0 ->
                 invoke TcpPackage.Ping 0 tcpClient
@@ -45,7 +45,7 @@ module P2PNetwork =
                 
                 invoke (TcpPackage.Message packagePayloadBuffer) read tcpClient
             | _ -> failwith "Unknown TCP packet"
-        } |> ignore
+        }
         
         do! listenForTcpPackage tcp invoke
     }
