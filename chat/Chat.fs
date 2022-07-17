@@ -19,54 +19,48 @@ module Chat =
         CurrentUser: string
         MessageInput: string
         MessagesList: Message list
-        TcpEndpoint: IPEndPoint option
+        TcpClients: TcpClient list
     }
         
     type Msg =
         | UdpSendPackage of UdpClient * int
         | UdpPackageReceived of byte[] * IPEndPoint
-        | MessageReceived of Message
+        | MessageReceived of Message * TcpClient
         | TextChanged of string
         | SendMessage
         
-    let udpSubscription listener =
-        fun dispatch ->
-            let invoke (payload:byte[]) endpoint =
-                Msg.UdpPackageReceived (payload, endpoint) |> dispatch |> ignore
-            P2PNetwork.listenForUdpPackage listener invoke |> Async.Start
+    let udpSubscription listener dispatch =
+        let invoke (payload:byte[]) endpoint =
+            Msg.UdpPackageReceived (payload, endpoint) |> dispatch |> ignore
+        P2PNetwork.listenForUdpPackage listener invoke |> Async.Start
         
-    let tcpSubscription (ip:IPEndPoint) =
-        fun dispatch ->
-            let invoke buf read =
-                let json = Encoding.UTF8.GetString(buf, 0, read)
-                let msg = JsonSerializer.Deserialize<Message>(json)
-                Msg.MessageReceived msg |> dispatch |> ignore
-            
-            let listener = P2PNetwork.tcpListener ip.Address ip.Port
-            P2PNetwork.listenForTcpPackage listener invoke |> Async.Start
+    let tcpSubscription listener dispatch =
+        let invoke buf read client =
+            let json = Encoding.UTF8.GetString(buf, 0, read)
+            let msg = JsonSerializer.Deserialize<Message>(json)
+            Msg.MessageReceived (msg, client) |> dispatch |> ignore
+        P2PNetwork.listenForTcpPackage listener invoke |> Async.Start
     
     let init =
         let model = {
-            TcpEndpoint = None
+            TcpClients = []
             CurrentUser = "Me"
             MessageInput = ""
             MessagesList = [
                 { Sender = "Me"; Message = "Hello"; DateTime = DateTime() }
-                { Sender = "Hime"; Message = "There\nasdasdad\nasdasdasd\nasdasdads"; DateTime = DateTime() }
-                { Sender = "Hime"; Message = "There\nasdasdad\nasdasdasd\nasdasdads"; DateTime = DateTime() }
-                { Sender = "Hime"; Message = "There\nasdasdad\nasdasdasd\nasdasdads"; DateTime = DateTime() }
-                { Sender = "Hime"; Message = "There\nasdasdad\nasdasdasd\nasdasdads"; DateTime = DateTime() }
-                { Sender = "Hime"; Message = "There\nasdasdad\nasdasdasd\nasdasdads"; DateTime = DateTime() }
-                { Sender = "Hime"; Message = "There\nasdasdad\nasdasdasd\nasdasdads"; DateTime = DateTime() }
                 { Sender = "Hime"; Message = "There\nasdasdad\nasdasdasd\nasdasdads"; DateTime = DateTime() }
             ]
         }
         
         let port = 63211
         let udpClient = P2PNetwork.udpClient IPAddress.Any port
+        let tcpListener = P2PNetwork.tcpListener IPAddress.Any port
+        
+        tcpListener.Start()
         
         let cmd = Cmd.batch [
             Cmd.ofSub <| udpSubscription udpClient
+            Cmd.ofSub <| tcpSubscription tcpListener
             Cmd.ofMsg <| UdpSendPackage (udpClient, port)
         ]
         
@@ -81,9 +75,11 @@ module Chat =
         | UdpPackageReceived (payload, ip) ->
             let payload = Encoding.UTF8.GetString(payload)
             if payload = "" // TODO: Parse secret
-            then { model with TcpEndpoint = Some ip }, Cmd.ofSub <| tcpSubscription ip
+            then
+                let client = P2PNetwork.tcpClient ip.Address ip.Port
+                { model with TcpClients = client :: model.TcpClients }, Cmd.none
             else model, Cmd.none
-        | MessageReceived m ->
+        | MessageReceived (m, client) ->
             { model with MessagesList = model.MessagesList @ [m] }, Cmd.none
         | SendMessage ->
             let newMsg = {
@@ -91,9 +87,10 @@ module Chat =
                 DateTime = DateTime.Now
                 Message = model.MessageInput
             }
-            let ip = model.TcpEndpoint.Value
-            use client = P2PNetwork.tcpClient ip.Address ip.Port
-            P2PNetwork.tcpSendAsJson client newMsg
+            model.TcpClients
+            |> List.iter (fun client ->
+                P2PNetwork.tcpSendAsJson client newMsg
+            )
             { model with MessageInput = ""; MessagesList = model.MessagesList @ [newMsg] }, Cmd.none
         | TextChanged t ->
             { model with MessageInput = t }, Cmd.none
@@ -103,6 +100,18 @@ module Chat =
             Grid.columnDefinitions "10, *, 5, Auto, 10"
             Grid.rowDefinitions "10, Auto, 5, *, 5, Auto, 10"
             Grid.children [
+                StackPanel.create [
+                    StackPanel.column 1
+                    StackPanel.columnSpan 3
+                    StackPanel.row 1
+                    StackPanel.orientation Orientation.Horizontal
+                    StackPanel.children (
+                        TextBlock.create [ TextBlock.text "Соединения: " ]
+                        :: (model.TcpClients
+                            |> List.map (fun tcp -> TextBlock.create [ TextBlock.text <| tcp.Client.RemoteEndPoint.ToString() ])
+                        )
+                    )
+                ]
                 Border.create [
                     Border.column 1
                     Border.columnSpan 3
@@ -185,7 +194,7 @@ module Chat =
                     Button.horizontalAlignment HorizontalAlignment.Center
                     Button.horizontalContentAlignment HorizontalAlignment.Center
                     Button.content ">"
-                    Button.isEnabled model.TcpEndpoint.IsSome
+                    Button.isEnabled (model.TcpClients.Length > 0)
                     Button.onClick (fun _ -> dispatch SendMessage)
                 ]
             ]

@@ -1,15 +1,11 @@
 ﻿namespace chat
 
-open System.Net
-open System.Text
-open System.Text.Json
 open Avalonia
 open Avalonia.Controls.ApplicationLifetimes
 open Avalonia.Themes.Fluent
 open Avalonia.FuncUI.Hosts
 open Elmish
 open Avalonia.FuncUI.Elmish
-open chat.Message
 
 type MainWindow() as this =
     inherit HostWindow()
@@ -23,7 +19,6 @@ type MainWindow() as this =
         
         Program.mkProgram (fun () -> Chat.init) Chat.update Chat.view
         |> Program.withHost this
-        |> Program.withConsoleTrace
         |> Program.run
         
 type App() =
