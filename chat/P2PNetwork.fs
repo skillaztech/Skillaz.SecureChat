@@ -20,7 +20,6 @@ module P2PNetwork =
     let tcpClient (ip:IPAddress) port =
         let tcp = new TcpClient(ip.ToString(), port)
         tcp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true)
-        tcp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseUnicastPort, true)
         tcp
         
     let rec listenForTcpPackage (tcp:TcpListener) invoke = async {
