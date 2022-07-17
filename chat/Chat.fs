@@ -23,7 +23,7 @@ module Chat =
     }
         
     type Msg =
-        | UdpSendPackage of UdpClient * int
+        | UdpSendPackage
         | UdpPackageReceived of byte[] * IPEndPoint
         | MessageReceived of Message * TcpClient
         | TextChanged of string
@@ -40,6 +40,10 @@ module Chat =
             let msg = JsonSerializer.Deserialize<Message>(json)
             Msg.MessageReceived (msg, client) |> dispatch |> ignore
         P2PNetwork.listenForTcpPackage listener invoke |> Async.Start
+        
+    let port = 63211
+    let udpClient = P2PNetwork.udpClient IPAddress.Any port
+    let tcpListener = P2PNetwork.tcpListener IPAddress.Any port
     
     let init =
         let model = {
@@ -52,31 +56,30 @@ module Chat =
             ]
         }
         
-        let port = 63211
-        let udpClient = P2PNetwork.udpClient IPAddress.Any port
-        let tcpListener = P2PNetwork.tcpListener IPAddress.Any port
-        
         tcpListener.Start()
         
         let cmd = Cmd.batch [
             Cmd.ofSub <| udpSubscription udpClient
             Cmd.ofSub <| tcpSubscription tcpListener
-            Cmd.ofMsg <| UdpSendPackage (udpClient, port)
+            Cmd.ofMsg <| UdpSendPackage
         ]
         
         model, cmd
     
     let update msg model =
         match msg with
-        | UdpSendPackage (client, port) ->
+        | UdpSendPackage ->
             let payload = Encoding.UTF8.GetBytes("") // TODO: Inject secret
-            client.Send(payload, payload.Length, IPEndPoint(IPAddress.Broadcast, port)) |> ignore
+            udpClient.Send(payload, payload.Length, IPEndPoint(IPAddress.Broadcast, port)) |> ignore
             model, Cmd.none
         | UdpPackageReceived (payload, ip) ->
             let payload = Encoding.UTF8.GetString(payload)
             if payload = "" // TODO: Parse secret
             then
-                { model with AvailableTcpEndpoints = ip :: model.AvailableTcpEndpoints }, Cmd.none
+                let alreadyExists = model.AvailableTcpEndpoints |> List.exists (fun o -> o = ip)
+                if not alreadyExists
+                then { model with AvailableTcpEndpoints = ip :: model.AvailableTcpEndpoints }, Cmd.ofMsg UdpSendPackage
+                else model, Cmd.none
             else model, Cmd.none
         | MessageReceived (m, client) ->
             { model with MessagesList = model.MessagesList @ [m] }, Cmd.none
@@ -104,6 +107,7 @@ module Chat =
                     StackPanel.column 1
                     StackPanel.columnSpan 3
                     StackPanel.row 1
+                    StackPanel.spacing 10
                     StackPanel.orientation Orientation.Horizontal
                     StackPanel.children (
                         TextBlock.create [ TextBlock.text "Соединения: " ]
