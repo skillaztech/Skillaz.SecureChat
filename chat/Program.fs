@@ -11,7 +11,7 @@ type MainWindow() as this =
     inherit HostWindow()
     do
         base.Title <- "SSC"
-        base.Width <- 400.0
+        base.Width <- 600.0
         base.Height <- 400.0
 
         //this.VisualRoot.VisualRoot.Renderer.DrawFps <- true

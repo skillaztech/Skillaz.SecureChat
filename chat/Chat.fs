@@ -120,26 +120,26 @@ module Chat =
 
     let view model dispatch =
         Grid.create [
-            Grid.columnDefinitions "10, *, 5, Auto, 10"
-            Grid.rowDefinitions "10, Auto, 5, *, 5, Auto, 10"
+            Grid.columnDefinitions "10, 2*, 5, 6*, 5, Auto, 10"
+            Grid.rowDefinitions "10, *, 5, Auto, 10"
             Grid.children [
                 StackPanel.create [
                     StackPanel.column 1
-                    StackPanel.columnSpan 3
                     StackPanel.row 1
+                    StackPanel.rowSpan 3
                     StackPanel.spacing 10
-                    StackPanel.orientation Orientation.Horizontal
+                    StackPanel.orientation Orientation.Vertical
                     StackPanel.children (
-                        TextBlock.create [ TextBlock.text "Соединения: " ]
+                        TextBlock.create [ TextBlock.text "В сети: " ]
                         :: (model.ConnectedEndpoints
                             |> List.map (fun tcp -> TextBlock.create [ TextBlock.text <| tcp.MachineName ])
                         )
                     )
                 ]
                 Border.create [
-                    Border.column 1
+                    Border.column 3
                     Border.columnSpan 3
-                    Border.row 3
+                    Border.row 1
                     Border.borderThickness 2
                     Border.cornerRadius 2
                     Border.child (
@@ -200,8 +200,8 @@ module Chat =
                 ]
                 
                 TextBox.create [
-                    TextBox.column 1
-                    TextBox.row 5
+                    TextBox.column 3
+                    TextBox.row 3
                     TextBox.watermark "Введите сообщение..."
                     TextBox.acceptsReturn true
                     TextBox.textWrapping TextWrapping.Wrap
@@ -211,8 +211,8 @@ module Chat =
                     TextBox.onTextChanged(fun text -> dispatch <| TextChanged text)
                 ]
                 Button.create [
-                    Button.column 3
-                    Button.row 5
+                    Button.column 5
+                    Button.row 3
                     Button.width 64
                     Button.verticalAlignment VerticalAlignment.Bottom
                     Button.horizontalAlignment HorizontalAlignment.Center
