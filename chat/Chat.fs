@@ -5,6 +5,7 @@ open System.Net
 open System.Net.Sockets
 open System.Text
 open System.Text.Json
+open Avalonia.Input
 open Elmish
 open Avalonia.FuncUI
 open Avalonia.Media
@@ -120,22 +121,31 @@ module Chat =
 
     let view model dispatch =
         Grid.create [
-            Grid.columnDefinitions "10, 2*, 5, 6*, 5, Auto, 10"
+            Grid.columnDefinitions "10, 120, 5, 6*, 5, Auto, 10"
             Grid.rowDefinitions "10, *, 5, Auto, 10"
             Grid.children [
-                StackPanel.create [
-                    StackPanel.column 1
-                    StackPanel.row 1
-                    StackPanel.rowSpan 3
-                    StackPanel.spacing 10
-                    StackPanel.orientation Orientation.Vertical
-                    StackPanel.children (
-                        TextBlock.create [ TextBlock.text "В сети: " ]
-                        :: (model.ConnectedEndpoints
-                            |> List.map (fun tcp -> TextBlock.create [ TextBlock.text <| tcp.MachineName ])
-                        )
+                ScrollViewer.create [
+                    ScrollViewer.column 1
+                    ScrollViewer.row 1
+                    ScrollViewer.rowSpan 3
+                    ScrollViewer.content (
+                        StackPanel.create [
+                            StackPanel.spacing 10
+                            StackPanel.orientation Orientation.Vertical
+                            StackPanel.children (
+                                TextBlock.create [ TextBlock.text "В сети: " ]
+                                :: (model.ConnectedEndpoints
+                                    |> List.map (fun connection ->
+                                        TextBlock.create [
+                                            TextBlock.fontSize 12
+                                            TextBlock.text <| connection.MachineName
+                                        ])
+                                )
+                            )
+                        ]
                     )
                 ]
+                
                 Border.create [
                     Border.column 3
                     Border.columnSpan 3
@@ -207,7 +217,7 @@ module Chat =
                     TextBox.textWrapping TextWrapping.Wrap
                     TextBox.text model.MessageInput
                     TextBox.maxHeight 200
-                    
+                    TextBox.onKeyDown (fun o -> if o.Key = Key.Enter && o.KeyModifiers = KeyModifiers.None then dispatch SendMessage; o.Handled <- true)
                     TextBox.onTextChanged(fun text -> dispatch <| TextChanged text)
                 ]
                 Button.create [
