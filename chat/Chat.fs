@@ -19,7 +19,7 @@ module Chat =
         CurrentUser: string
         MessageInput: string
         MessagesList: Message list
-        TcpClients: IPEndPoint list
+        AvailableTcpEndpoints: IPEndPoint list
     }
         
     type Msg =
@@ -43,7 +43,7 @@ module Chat =
     
     let init =
         let model = {
-            TcpClients = []
+            AvailableTcpEndpoints = []
             CurrentUser = "Me"
             MessageInput = ""
             MessagesList = [
@@ -76,7 +76,7 @@ module Chat =
             let payload = Encoding.UTF8.GetString(payload)
             if payload = "" // TODO: Parse secret
             then
-                { model with TcpClients = ip :: model.TcpClients }, Cmd.none
+                { model with AvailableTcpEndpoints = ip :: model.AvailableTcpEndpoints }, Cmd.none
             else model, Cmd.none
         | MessageReceived (m, client) ->
             { model with MessagesList = model.MessagesList @ [m] }, Cmd.none
@@ -86,7 +86,7 @@ module Chat =
                 DateTime = DateTime.Now
                 Message = model.MessageInput
             }
-            model.TcpClients
+            model.AvailableTcpEndpoints
             |> List.iter (fun ip ->
                 let client = P2PNetwork.tcpClient ip.Address ip.Port
                 P2PNetwork.tcpSendAsJson client newMsg
@@ -107,7 +107,7 @@ module Chat =
                     StackPanel.orientation Orientation.Horizontal
                     StackPanel.children (
                         TextBlock.create [ TextBlock.text "Соединения: " ]
-                        :: (model.TcpClients
+                        :: (model.AvailableTcpEndpoints
                             |> List.map (fun tcp -> TextBlock.create [ TextBlock.text <| tcp.ToString() ])
                         )
                     )
@@ -194,7 +194,7 @@ module Chat =
                     Button.horizontalAlignment HorizontalAlignment.Center
                     Button.horizontalContentAlignment HorizontalAlignment.Center
                     Button.content ">"
-                    Button.isEnabled (model.TcpClients.Length > 0)
+                    Button.isEnabled (model.AvailableTcpEndpoints.Length > 0)
                     Button.onClick (fun _ -> dispatch SendMessage)
                 ]
             ]
