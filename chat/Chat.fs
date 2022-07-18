@@ -26,6 +26,7 @@ module Chat =
     type ConnectedEndpoint = {
         MachineName: string
         Ip: IPEndPoint
+        TcpClient: TcpClient
     }
     
     type UdpPackagePayload = {
@@ -78,8 +79,8 @@ module Chat =
         
         let model = {
             AppSettings = appSettings
-            TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.Port
-            UdpClient = P2PNetwork.udpClient IPAddress.Any appSettings.Port
+            TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.ListenerPort
+            UdpClient = P2PNetwork.udpClient IPAddress.Any appSettings.ListenerPort
             ConnectedEndpoints = []
             MessageInput = ""
             MessagesList = []
@@ -101,7 +102,7 @@ module Chat =
         | UdpSendPackage ->
             let json = JsonSerializer.Serialize({ MachineName = model.AppSettings.MachineName; SecretHash = model.AppSettings.SecretHash })
             let payload = Encoding.UTF8.GetBytes(json)
-            model.UdpClient.Send(payload, payload.Length, IPEndPoint(IPAddress.Broadcast, model.AppSettings.Port)) |> ignore
+            model.UdpClient.Send(payload, payload.Length, IPEndPoint(IPAddress.Broadcast, model.AppSettings.ListenerPort)) |> ignore
             model, Cmd.none
         | UdpPackageReceived (payload, ip) ->
             let payload = Encoding.UTF8.GetString(payload)
@@ -110,7 +111,11 @@ module Chat =
             then
                 if model.ConnectedEndpoints |> List.exists (fun o -> o.Ip = ip) |> not
                 then
-                    let connectionEndpoint = { MachineName = package.MachineName; Ip = ip }
+                    let connectionEndpoint = {
+                        MachineName = package.MachineName
+                        Ip = ip
+                        TcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
+                    }
                     { model with ConnectedEndpoints = connectionEndpoint :: model.ConnectedEndpoints }, Cmd.ofMsg UdpSendPackage
                 else model, Cmd.none
             else model, Cmd.none
@@ -130,8 +135,7 @@ module Chat =
             }
             model.ConnectedEndpoints
             |> List.iter (fun ce ->
-                use client = P2PNetwork.tcpClient ce.Ip.Address ce.Ip.Port
-                P2PNetwork.tcpSendAsJson client newMsg
+                P2PNetwork.tcpSendAsJson ce.TcpClient newMsg
             )
             { model with MessageInput = "";  },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
         | HealthCheckConnectedEndpoints ->
@@ -139,11 +143,12 @@ module Chat =
                 model.ConnectedEndpoints
                 |> List.where (fun ce ->
                     try
-                        use client = P2PNetwork.tcpClient ce.Ip.Address ce.Ip.Port
-                        P2PNetwork.tcpSendPing client
+                        P2PNetwork.tcpSendPing ce.TcpClient
                         true
                     with
-                    | _ -> false
+                    | _ ->
+                        ce.TcpClient.Dispose()
+                        false
                 )
             { model with ConnectedEndpoints = successfullyPingedEndpoints }, Cmd.none
         | AppendLocalMessage m ->

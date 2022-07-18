@@ -3,6 +3,7 @@ namespace chat
 open System
 open System.Net
 open System.Net.Sockets
+open System.Runtime.InteropServices
 open System.Text
 open System.Text.Json
 
@@ -17,14 +18,18 @@ module P2PNetwork =
         tcp.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true)
         tcp
         
-    let tcpClient (ip:IPAddress) port =
-        let tcp = new TcpClient(ip.ToString(), port)
-        tcp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true)
+    let tcpClient (ip:IPAddress) port localPort =
+        let tcp = new TcpClient()
+        if not <| RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+        then tcp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true)
+        tcp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+        tcp.Client.Bind(IPEndPoint(IPAddress.Any, localPort))
+        tcp.Connect(ip, port)
         tcp
         
     let rec listenForTcpPackage (tcp:TcpListener) invoke = async {
-        let! tcpClient = tcp.AcceptTcpClientAsync() |> Async.AwaitTask
-        let networkStream = tcpClient.GetStream()
+        use! tcpClient = tcp.AcceptTcpClientAsync() |> Async.AwaitTask
+        use networkStream = tcpClient.GetStream()
         
         let length = sizeof<int>
         let packageTypeBuffer = Array.zeroCreate length
@@ -53,13 +58,13 @@ module P2PNetwork =
     }
     
     let tcpSendPing (tcp:TcpClient) =
-        use stream = tcp.GetStream()
+        let stream = tcp.GetStream()
         let packageType = BitConverter.GetBytes(0)
         stream.Write(packageType)
         stream.Flush()
     
     let tcpSendAsJson (tcp:TcpClient) payload =
-        use stream = tcp.GetStream()
+        let stream = tcp.GetStream()
         let msg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload)) |> List.ofArray
         let packageType = BitConverter.GetBytes(1) |> List.ofArray
         let length = BitConverter.GetBytes(msg.Length) |> List.ofArray
