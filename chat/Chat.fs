@@ -79,7 +79,7 @@ module Chat =
                 let json = Encoding.UTF8.GetString(bytes, 0, read)
                 let msg = JsonSerializer.Deserialize<ChatMessage>(json)
                 Msg.RemoteChatMessageReceived (msg, client) |> dispatch |> ignore
-        P2PNetwork.listenForTcpPackages tcpClient (tcpClient.GetStream()) invoke |> Async.Start
+        P2PNetwork.listenForTcpPackages tcpClient invoke |> Async.Start
     
     let init appSettings =
         
