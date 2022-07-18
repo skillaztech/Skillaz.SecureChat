@@ -27,10 +27,13 @@ module P2PNetwork =
         tcp.Connect(ip, port)
         tcp
         
-    let rec listenForTcpPackage (tcp:TcpListener) invoke = async {
-        use! tcpClient = tcp.AcceptTcpClientAsync() |> Async.AwaitTask
-        use networkStream = tcpClient.GetStream()
-        
+    let rec listenForTcpConnection (tcp:TcpListener) invoke = async {
+        let! tcpClient = tcp.AcceptTcpClientAsync() |> Async.AwaitTask
+        invoke tcpClient
+        do! listenForTcpConnection tcp invoke
+    }
+    
+    let rec listenForTcpPackages (tcpClient:TcpClient) (networkStream:NetworkStream) invoke = async {
         let length = sizeof<int>
         let packageTypeBuffer = Array.zeroCreate length
         let! _ = networkStream.ReadAsync(packageTypeBuffer, 0, length) |> Async.AwaitTask
@@ -54,7 +57,7 @@ module P2PNetwork =
             | _ -> failwith "Unknown TCP packet"
         }
         
-        do! listenForTcpPackage tcp invoke
+        do! listenForTcpPackages tcpClient networkStream invoke
     }
     
     let tcpSendPing (tcp:TcpClient) =

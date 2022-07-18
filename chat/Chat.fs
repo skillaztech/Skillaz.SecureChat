@@ -19,7 +19,7 @@ open AppSettings
 module Chat =
     
     type LocalMessage = {
-        Message: Message
+        Message: ChatMessage
         IsMe: bool
     }
     
@@ -46,7 +46,8 @@ module Chat =
     type Msg =
         | UdpSendPackage
         | UdpPackageReceived of byte[] * IPEndPoint
-        | RemoteMessageReceived of Message * TcpClient
+        | RemoteTcpClientConnected of TcpClient
+        | RemoteChatMessageReceived of ChatMessage * TcpClient
         | TextChanged of string
         | AppendLocalMessage of LocalMessage
         | SendMessage
@@ -65,15 +66,20 @@ module Chat =
             Msg.UdpPackageReceived (payload, endpoint) |> dispatch |> ignore
         P2PNetwork.listenForUdpPackage listener invoke |> Async.Start
         
-    let tcpSubscription listener dispatch =
+    let tcpConnectionsSubscription listener dispatch =
+        let invoke (client:TcpClient) =
+            Msg.RemoteTcpClientConnected client |> dispatch
+        P2PNetwork.listenForTcpConnection listener invoke |> Async.Start
+        
+    let tcpPackagesSubscription tcpClient dispatch =
         let invoke msgType read client =
             match msgType with
             | P2PNetwork.TcpPackage.Ping -> ()
             | P2PNetwork.TcpPackage.Message bytes ->
                 let json = Encoding.UTF8.GetString(bytes, 0, read)
-                let msg = JsonSerializer.Deserialize<Message>(json)
-                Msg.RemoteMessageReceived (msg, client) |> dispatch |> ignore
-        P2PNetwork.listenForTcpPackage listener invoke |> Async.Start
+                let msg = JsonSerializer.Deserialize<ChatMessage>(json)
+                Msg.RemoteChatMessageReceived (msg, client) |> dispatch |> ignore
+        P2PNetwork.listenForTcpPackages tcpClient (tcpClient.GetStream()) invoke |> Async.Start
     
     let init appSettings =
         
@@ -91,7 +97,7 @@ module Chat =
         let cmd = Cmd.batch [
             Cmd.ofSub <| healthCheckSubscription 
             Cmd.ofSub <| udpSubscription model.UdpClient
-            Cmd.ofSub <| tcpSubscription model.TcpListener
+            Cmd.ofSub <| tcpConnectionsSubscription model.TcpListener
             Cmd.ofMsg <| UdpSendPackage
         ]
         
@@ -119,7 +125,9 @@ module Chat =
                     { model with ConnectedEndpoints = connectionEndpoint :: model.ConnectedEndpoints }, Cmd.ofMsg UdpSendPackage
                 else model, Cmd.none
             else model, Cmd.none
-        | RemoteMessageReceived (m, client) ->
+        | RemoteTcpClientConnected client ->
+            model, Cmd.ofSub <| tcpPackagesSubscription client
+        | RemoteChatMessageReceived (m, client) ->
             let isMe =
                 match client.Client.LocalEndPoint, client.Client.RemoteEndPoint with
                 | (:? IPEndPoint as local), (:? IPEndPoint as remote) -> local.Address = remote.Address
