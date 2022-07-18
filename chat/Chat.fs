@@ -40,7 +40,8 @@ module Chat =
         UdpClient: UdpClient
         MessageInput: string
         MessagesList: LocalMessage list
-        ConnectedEndpoints: ConnectedEndpoint list
+        ConnectedClients: ConnectedEndpoint list
+        ConnectedListeners: TcpClient list
     }
         
     type Msg =
@@ -87,7 +88,8 @@ module Chat =
             AppSettings = appSettings
             TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.ListenerPort
             UdpClient = P2PNetwork.udpClient IPAddress.Any appSettings.ListenerPort
-            ConnectedEndpoints = []
+            ConnectedClients = []
+            ConnectedListeners = []
             MessageInput = ""
             MessagesList = []
         }
@@ -115,18 +117,18 @@ module Chat =
             let package = JsonSerializer.Deserialize<UdpPackagePayload>(payload)
             if package.SecretHash = model.AppSettings.SecretHash
             then
-                if model.ConnectedEndpoints |> List.exists (fun o -> o.Ip = ip) |> not
+                if model.ConnectedClients |> List.exists (fun o -> o.Ip = ip) |> not
                 then
                     let connectionEndpoint = {
                         MachineName = package.MachineName
                         Ip = ip
                         TcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
                     }
-                    { model with ConnectedEndpoints = connectionEndpoint :: model.ConnectedEndpoints }, Cmd.ofMsg UdpSendPackage
+                    { model with ConnectedClients = connectionEndpoint :: model.ConnectedClients }, Cmd.ofMsg UdpSendPackage
                 else model, Cmd.none
             else model, Cmd.none
         | RemoteTcpClientConnected client ->
-            model, Cmd.ofSub <| tcpPackagesSubscription client
+            { model with ConnectedListeners = client :: model.ConnectedListeners }, Cmd.ofSub <| tcpPackagesSubscription client
         | RemoteChatMessageReceived (m, client) ->
             let isMe =
                 match client.Client.LocalEndPoint, client.Client.RemoteEndPoint with
@@ -141,24 +143,38 @@ module Chat =
                 DateTime = DateTime.Now
                 MessageText = model.MessageInput
             }
-            model.ConnectedEndpoints
+            model.ConnectedClients
             |> List.iter (fun ce ->
                 P2PNetwork.tcpSendAsJson ce.TcpClient newMsg
             )
             { model with MessageInput = "";  },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
         | HealthCheckConnectedEndpoints ->
             let successfullyPingedEndpoints =
-                model.ConnectedEndpoints
+                model.ConnectedClients
                 |> List.where (fun ce ->
                     try
                         P2PNetwork.tcpSendPing ce.TcpClient
                         true
                     with
                     | _ ->
+                        let listener =
+                            model.ConnectedListeners |> List.tryFind (fun listener ->
+                                match listener.Client.LocalEndPoint,
+                                      listener.Client.RemoteEndPoint,
+                                      ce.TcpClient.Client.LocalEndPoint,
+                                      ce.TcpClient.Client.RemoteEndPoint
+                                      with
+                                | (:? IPEndPoint as lLocal),
+                                  (:? IPEndPoint as lRemote),
+                                  (:? IPEndPoint as cLocal),
+                                  (:? IPEndPoint as cRemote) -> lLocal.Address = cLocal.Address && lRemote.Address = cRemote.Address
+                                | _ -> false
+                            )
                         ce.TcpClient.Dispose()
+                        if listener.IsSome then listener.Value.Dispose()
                         false
                 )
-            { model with ConnectedEndpoints = successfullyPingedEndpoints }, Cmd.none
+            { model with ConnectedClients = successfullyPingedEndpoints }, Cmd.none
         | AppendLocalMessage m ->
             { model with MessagesList = model.MessagesList @ [m] }, Cmd.none
         | TextChanged t ->
@@ -179,7 +195,7 @@ module Chat =
                             StackPanel.orientation Orientation.Vertical
                             StackPanel.children (
                                 TextBlock.create [ TextBlock.text "В сети: " ]
-                                :: (model.ConnectedEndpoints
+                                :: (model.ConnectedClients
                                     |> List.map (fun connection ->
                                         TextBlock.create [
                                             TextBlock.fontSize 12
@@ -273,7 +289,7 @@ module Chat =
                     Button.horizontalAlignment HorizontalAlignment.Center
                     Button.horizontalContentAlignment HorizontalAlignment.Center
                     Button.content ">"
-                    Button.isEnabled (model.ConnectedEndpoints.Length > 0)
+                    Button.isEnabled (model.ConnectedClients.Length > 0)
                     Button.onClick (fun _ -> dispatch SendMessage)
                 ]
             ]
