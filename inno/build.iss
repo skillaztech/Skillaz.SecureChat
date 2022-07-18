@@ -17,7 +17,7 @@ AppName={#ApplicationName}
 AppVersion={#ApplicationVersion}
 AppVerName={#ApplicationName} {#ApplicationVersion}
 AppPublisher={#AuthorName}
-DefaultDirName={pf}\{#ApplicationName}
+DefaultDirName={localappdata}\{#ApplicationName}
 DefaultGroupName={#ApplicationName}
 AllowNoIcons=yes
 OutputBaseFilename={#ApplicationName} Installer
@@ -53,7 +53,7 @@ Source: "..\logo.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#ApplicationInstallationFolder}"; Filename: "{app}\{#ApplicationExeFile}"
-Name: "{commondesktop}\{#ApplicationInstallationFolder}"; Filename: "{app}\{#ApplicationExeFile}"; Tasks: desktopicon
+Name: "{userdesktop}\{#ApplicationInstallationFolder}"; Filename: "{app}\{#ApplicationExeFile}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#ApplicationExeFile}"; Description: "{cm:LaunchProgram,{#ApplicationInstallationFolder}}"; Flags: nowait postinstall skipifsilent
