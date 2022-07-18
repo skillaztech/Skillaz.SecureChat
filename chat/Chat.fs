@@ -149,9 +149,9 @@ module Chat =
             )
             { model with MessageInput = "";  },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
         | HealthCheckConnectedEndpoints ->
-            let successfullyPingedEndpoints =
+            let successfullyPingedEndpoints, unsuccessfullyPingedEndpoints =
                 model.ConnectedClients
-                |> List.where (fun ce ->
+                |> List.partition (fun ce ->
                     try
                         P2PNetwork.tcpSendPing ce.TcpClient
                         true
@@ -175,11 +175,38 @@ module Chat =
                                             true
                                     | _ -> true
                             )
-                        ce.TcpClient.Dispose()
-                        // TODO: REMOVE remainsListeners FROM CONNECTEDLISTENERS
                         false
                 )
-            { model with ConnectedClients = successfullyPingedEndpoints }, Cmd.none
+            
+            let remainListeners =
+                model.ConnectedListeners
+                |> List.where (fun listener ->
+                    if listener.Client = null
+                    then
+                        listener.Dispose()
+                        false
+                    else
+                        true
+                )
+                |> List.where (fun listener ->
+                    unsuccessfullyPingedEndpoints
+                    |> List.exists (fun ce ->
+                        match ce.Ip, listener.Client.RemoteEndPoint with
+                        | cRemote, (:? IPEndPoint as lRemote) ->
+                            if cRemote.Address = lRemote.Address
+                            then
+                                listener.Dispose()
+                                false
+                            else
+                                true
+                        | _ -> true
+                    )
+                )
+            
+            unsuccessfullyPingedEndpoints
+            |> List.iter (fun ce -> ce.TcpClient.Dispose())
+            
+            { model with ConnectedClients = successfullyPingedEndpoints; ConnectedListeners = remainListeners }, Cmd.none
         | AppendLocalMessage m ->
             { model with MessagesList = model.MessagesList @ [m] }, Cmd.none
         | TextChanged t ->
