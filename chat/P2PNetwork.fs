@@ -33,32 +33,33 @@ module P2PNetwork =
     }
     
     let rec listenForTcpPackages (tcpClient:TcpClient) invoke = async {
-        use networkStream = tcpClient.GetStream()
-        
-        let length = sizeof<int>
-        let packageTypeBuffer = Array.zeroCreate length
-        let! _ = networkStream.ReadAsync(packageTypeBuffer, 0, length) |> Async.AwaitTask
-        
-        let packageType = BitConverter.ToInt32 packageTypeBuffer
-        
-        do! async {
-            match packageType with
-            | 0 ->
-                invoke TcpPackage.Ping 0 tcpClient
-            | 1 ->
-                let length = sizeof<int>
-                let packageLengthBuffer = Array.zeroCreate length
-                let! _ = networkStream.ReadAsync(packageLengthBuffer, 0, length) |> Async.AwaitTask
-                
-                let length = BitConverter.ToInt32 packageLengthBuffer
-                let packagePayloadBuffer = Array.zeroCreate length
-                let! read = networkStream.ReadAsync(packagePayloadBuffer, 0, length) |> Async.AwaitTask
-                
-                invoke (TcpPackage.Message packagePayloadBuffer) read tcpClient
-            | _ -> failwith "Unknown TCP packet"
-        }
-        
-        do! listenForTcpPackages tcpClient invoke
+        if tcpClient.Connected then
+            use networkStream = tcpClient.GetStream()
+            
+            let length = sizeof<int>
+            let packageTypeBuffer = Array.zeroCreate length
+            let! _ = networkStream.ReadAsync(packageTypeBuffer, 0, length) |> Async.AwaitTask
+            
+            let packageType = BitConverter.ToInt32 packageTypeBuffer
+            
+            do! async {
+                match packageType with
+                | 0 ->
+                    invoke TcpPackage.Ping 0 tcpClient
+                | 1 ->
+                    let length = sizeof<int>
+                    let packageLengthBuffer = Array.zeroCreate length
+                    let! _ = networkStream.ReadAsync(packageLengthBuffer, 0, length) |> Async.AwaitTask
+                    
+                    let length = BitConverter.ToInt32 packageLengthBuffer
+                    let packagePayloadBuffer = Array.zeroCreate length
+                    let! read = networkStream.ReadAsync(packagePayloadBuffer, 0, length) |> Async.AwaitTask
+                    
+                    invoke (TcpPackage.Message packagePayloadBuffer) read tcpClient
+                | _ -> failwith "Unknown TCP packet"
+            }
+            
+            do! listenForTcpPackages tcpClient invoke
     }
     
     let tcpSendPing (tcp:TcpClient) =

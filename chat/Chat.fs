@@ -157,14 +157,26 @@ module Chat =
                         true
                     with
                     | _ ->
-                        let listener =
-                            model.ConnectedListeners |> List.tryFind (fun listener ->
-                                match ce.Ip, listener.Client.RemoteEndPoint with
-                                | cRemote, (:? IPEndPoint as lRemote) -> cRemote.Address = lRemote.Address
-                                | _ -> false
+                        let remainsListeners =
+                            model.ConnectedListeners
+                            |> List.where (fun listener ->
+                                if listener.Client = null
+                                then
+                                    listener.Dispose()
+                                    false
+                                else
+                                    match ce.Ip, listener.Client.RemoteEndPoint with
+                                    | cRemote, (:? IPEndPoint as lRemote) ->
+                                        if cRemote.Address = lRemote.Address
+                                        then
+                                            listener.Dispose()
+                                            false
+                                        else
+                                            true
+                                    | _ -> true
                             )
                         ce.TcpClient.Dispose()
-                        if listener.IsSome then listener.Value.Dispose()
+                        // TODO: REMOVE remainsListeners FROM CONNECTEDLISTENERS
                         false
                 )
             { model with ConnectedClients = successfullyPingedEndpoints }, Cmd.none
