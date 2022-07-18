@@ -159,15 +159,8 @@ module Chat =
                     | _ ->
                         let listener =
                             model.ConnectedListeners |> List.tryFind (fun listener ->
-                                match listener.Client.LocalEndPoint,
-                                      listener.Client.RemoteEndPoint,
-                                      ce.TcpClient.Client.LocalEndPoint,
-                                      ce.TcpClient.Client.RemoteEndPoint
-                                      with
-                                | (:? IPEndPoint as lLocal),
-                                  (:? IPEndPoint as lRemote),
-                                  (:? IPEndPoint as cLocal),
-                                  (:? IPEndPoint as cRemote) -> lLocal.Address = cLocal.Address && lRemote.Address = cRemote.Address
+                                match ce.Ip, listener.Client.RemoteEndPoint with
+                                | cRemote, (:? IPEndPoint as lRemote) -> cRemote.Address = lRemote.Address
                                 | _ -> false
                             )
                         ce.TcpClient.Dispose()
