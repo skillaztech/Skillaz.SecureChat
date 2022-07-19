@@ -1,6 +1,7 @@
 ﻿namespace chat
 
 open System
+open System.Collections.Generic
 open System.Net
 open System.Net.Sockets
 open System.Text
@@ -41,7 +42,7 @@ module Chat =
         MessageInput: string
         MessagesList: LocalMessage list
         ConnectedClients: ConnectedEndpoint list
-        ConnectedListeners: TcpClient list
+        ConnectedListeners: Dictionary<IPAddress, TcpClient>
     }
         
     type Msg =
@@ -89,7 +90,7 @@ module Chat =
             TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.ListenerPort
             UdpClient = P2PNetwork.udpClient IPAddress.Any appSettings.ListenerPort
             ConnectedClients = []
-            ConnectedListeners = []
+            ConnectedListeners = Dictionary<IPAddress, TcpClient>()
             MessageInput = ""
             MessagesList = []
         }
@@ -128,7 +129,11 @@ module Chat =
                 else model, Cmd.none
             else model, Cmd.none
         | RemoteTcpClientConnected client ->
-            { model with ConnectedListeners = client :: model.ConnectedListeners }, Cmd.ofSub <| tcpPackagesSubscription client
+            match client.Client.RemoteEndPoint with
+            | :? IPEndPoint as ip -> 
+                model.ConnectedListeners[ip.Address] = client |> ignore
+                model, Cmd.ofSub <| tcpPackagesSubscription client
+            | _ -> model, Cmd.none
         | RemoteChatMessageReceived (m, client) ->
             let isMe =
                 match client.Client.LocalEndPoint, client.Client.RemoteEndPoint with
@@ -159,38 +164,18 @@ module Chat =
                     | _ ->
                         false
                 )
-            
-            let remainListeners =
-                model.ConnectedListeners
-                |> List.where (fun listener ->
-                    if listener.Client = null
-                    then
-                        listener.Dispose()
-                        false
-                    else
-                        true
-                )
-                |> List.where (fun listener ->
-                    unsuccessfullyPingedEndpoints.Length = 0
-                    ||
-                    unsuccessfullyPingedEndpoints
-                    |> List.exists (fun ce ->
-                        match ce.Ip, listener.Client.RemoteEndPoint with
-                        | cRemote, (:? IPEndPoint as lRemote) ->
-                            if cRemote.Address = lRemote.Address
-                            then
-                                listener.Dispose()
-                                false
-                            else
-                                true
-                        | _ -> true
-                    )
-                )
-            
+                
             unsuccessfullyPingedEndpoints
-            |> List.iter (fun ce -> ce.TcpClient.Dispose())
+            |> List.iter (fun ep ->
+                let tcpFound, tcp = model.ConnectedListeners.TryGetValue(ep.Ip.Address)
+                if tcpFound
+                then
+                    tcp.Dispose()
+                    model.ConnectedListeners.Remove(ep.Ip.Address) |> ignore
+                ep.TcpClient.Dispose()
+            )
             
-            { model with ConnectedClients = successfullyPingedEndpoints; ConnectedListeners = remainListeners }, Cmd.none
+            { model with ConnectedClients = successfullyPingedEndpoints; }, Cmd.none
         | AppendLocalMessage m ->
             { model with MessagesList = model.MessagesList @ [m] }, Cmd.none
         | TextChanged t ->
