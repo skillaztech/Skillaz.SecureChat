@@ -171,6 +171,8 @@ module Chat =
                         true
                 )
                 |> List.where (fun listener ->
+                    unsuccessfullyPingedEndpoints.Length = 0
+                    ||
                     unsuccessfullyPingedEndpoints
                     |> List.exists (fun ce ->
                         match ce.Ip, listener.Client.RemoteEndPoint with

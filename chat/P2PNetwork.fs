@@ -19,7 +19,7 @@ module P2PNetwork =
         tcp
         
     let tcpClient (ip:IPAddress) port localPort =
-        let tcp = new TcpClient()
+        let tcp = new TcpClient(AddressFamily.InterNetwork)
         tcp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true)
         tcp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
         tcp.Client.Bind(IPEndPoint(IPAddress.Any, localPort))
