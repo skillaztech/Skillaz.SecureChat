@@ -130,8 +130,8 @@ module Chat =
             else model, Cmd.none
         | RemoteTcpClientConnected client ->
             match client.Client.RemoteEndPoint with
-            | :? IPEndPoint as ip -> 
-                model.ConnectedListeners[ip.Address] = client |> ignore
+            | :? IPEndPoint as ip ->
+                model.ConnectedListeners.Add(ip.Address, client)
                 model, Cmd.ofSub <| tcpPackagesSubscription client
             | _ -> model, Cmd.none
         | RemoteChatMessageReceived (m, client) ->
