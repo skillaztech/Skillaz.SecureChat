@@ -12,6 +12,7 @@ module P2PNetwork =
     type TcpPackage =
         | Ping
         | Message of byte[]
+        | Hello of byte[]
     
     let tcpListener ip port =
         let tcp = TcpListener(ip, port)
@@ -28,7 +29,27 @@ module P2PNetwork =
         
     let rec listenForTcpConnection (tcp:TcpListener) invoke = async {
         use! tcpClient = tcp.AcceptTcpClientAsync() |> Async.AwaitTask
-        invoke tcpClient
+        if tcpClient.Connected then
+            let networkStream = tcpClient.GetStream()
+            
+            let length = sizeof<int>
+            let packageTypeBuffer = Array.zeroCreate length
+            let! _ = networkStream.ReadAsync(packageTypeBuffer, 0, length) |> Async.AwaitTask
+            
+            let packageType = BitConverter.ToInt32 packageTypeBuffer
+            
+            if packageType = 202
+            then
+                let length = sizeof<int>
+                let packageLengthBuffer = Array.zeroCreate length
+                let! _ = networkStream.ReadAsync(packageLengthBuffer, 0, length) |> Async.AwaitTask
+                
+                let length = BitConverter.ToInt32 packageLengthBuffer
+                let packagePayloadBuffer = Array.zeroCreate length
+                let! read = networkStream.ReadAsync(packagePayloadBuffer, 0, length) |> Async.AwaitTask
+                
+                invoke (TcpPackage.Hello packagePayloadBuffer) read tcpClient
+        
         do! listenForTcpConnection tcp invoke
     }
     
@@ -68,10 +89,19 @@ module P2PNetwork =
         stream.Write(packageType)
         stream.Flush()
     
+    let tcpSendHello (tcp:TcpClient) machineName =
+        let stream = tcp.GetStream()
+        let packageType = BitConverter.GetBytes(202) |> List.ofArray
+        let msg = Encoding.UTF8.GetBytes(s=machineName) |> List.ofArray
+        let length = BitConverter.GetBytes(msg.Length) |> List.ofArray
+        let bytes = packageType @ length @ msg |> Array.ofList
+        stream.Write(bytes)
+        stream.Flush()
+    
     let tcpSendAsJson (tcp:TcpClient) payload =
         let stream = tcp.GetStream()
-        let msg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload)) |> List.ofArray
         let packageType = BitConverter.GetBytes(1) |> List.ofArray
+        let msg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload)) |> List.ofArray
         let length = BitConverter.GetBytes(msg.Length) |> List.ofArray
         let bytes = packageType @ length @ msg |> Array.ofList
         stream.Write(bytes)

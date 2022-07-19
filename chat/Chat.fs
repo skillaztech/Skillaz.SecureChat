@@ -41,14 +41,13 @@ module Chat =
         UdpClient: UdpClient
         MessageInput: string
         MessagesList: LocalMessage list
-        ConnectedClients: ConnectedEndpoint list
-        ConnectedListeners: Dictionary<IPAddress, TcpClient>
+        TcpConnections: ConnectedEndpoint list
     }
         
     type Msg =
         | UdpSendPackage
         | UdpPackageReceived of byte[] * IPEndPoint
-        | RemoteTcpClientConnected of TcpClient
+        | RemoteTcpClientConnected of TcpClient * string
         | RemoteChatMessageReceived of ChatMessage * TcpClient
         | TextChanged of string
         | AppendLocalMessage of LocalMessage
@@ -68,20 +67,24 @@ module Chat =
             Msg.UdpPackageReceived (payload, endpoint) |> dispatch |> ignore
         P2PNetwork.listenForUdpPackage listener invoke |> Async.Start
         
+    let handleTcpPackage dispatch packageType read client =
+        match packageType with
+        | P2PNetwork.TcpPackage.Ping -> ()
+        | P2PNetwork.TcpPackage.Hello bytes ->
+            let name = Encoding.UTF8.GetString(bytes, 0, read)
+            Msg.RemoteTcpClientConnected (client, name) |> dispatch
+        | P2PNetwork.TcpPackage.Message bytes ->
+            let json = Encoding.UTF8.GetString(bytes, 0, read)
+            let msg = JsonSerializer.Deserialize<ChatMessage>(json)
+            Msg.RemoteChatMessageReceived (msg, client) |> dispatch
+        
     let tcpConnectionsSubscription listener dispatch =
-        let invoke (client:TcpClient) =
-            Msg.RemoteTcpClientConnected client |> dispatch
-        P2PNetwork.listenForTcpConnection listener invoke |> Async.Start
+        let handle = handleTcpPackage dispatch
+        P2PNetwork.listenForTcpConnection listener handle |> Async.Start
         
     let tcpPackagesSubscription tcpClient dispatch =
-        let invoke msgType read client =
-            match msgType with
-            | P2PNetwork.TcpPackage.Ping -> ()
-            | P2PNetwork.TcpPackage.Message bytes ->
-                let json = Encoding.UTF8.GetString(bytes, 0, read)
-                let msg = JsonSerializer.Deserialize<ChatMessage>(json)
-                Msg.RemoteChatMessageReceived (msg, client) |> dispatch |> ignore
-        P2PNetwork.listenForTcpPackages tcpClient invoke |> Async.Start
+        let handle = handleTcpPackage dispatch
+        P2PNetwork.listenForTcpPackages tcpClient handle |> Async.Start
     
     let init appSettings =
         
@@ -89,8 +92,7 @@ module Chat =
             AppSettings = appSettings
             TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.ListenerPort
             UdpClient = P2PNetwork.udpClient IPAddress.Any appSettings.ListenerPort
-            ConnectedClients = []
-            ConnectedListeners = Dictionary<IPAddress, TcpClient>()
+            TcpConnections = []
             MessageInput = ""
             MessagesList = []
         }
@@ -109,7 +111,7 @@ module Chat =
     let update msg model =
         match msg with
         | UdpSendPackage ->
-            let json = JsonSerializer.Serialize({ MachineName = model.AppSettings.MachineName; SecretHash = model.AppSettings.SecretHash })
+            let json = JsonSerializer.Serialize({ MachineName = Environment.MachineName; SecretHash = model.AppSettings.SecretHash })
             let payload = Encoding.UTF8.GetBytes(json)
             model.UdpClient.Send(payload, payload.Length, IPEndPoint(IPAddress.Broadcast, model.AppSettings.ListenerPort)) |> ignore
             model, Cmd.none
@@ -118,21 +120,29 @@ module Chat =
             let package = JsonSerializer.Deserialize<UdpPackagePayload>(payload)
             if package.SecretHash = model.AppSettings.SecretHash
             then
-                if model.ConnectedClients |> List.exists (fun o -> o.Ip = ip) |> not
+                if model.TcpConnections |> List.exists (fun o -> o.Ip = ip) |> not
                 then
+                    let tcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
+                    P2PNetwork.tcpSendHello tcpClient Environment.MachineName
+                    
                     let connectionEndpoint = {
                         MachineName = package.MachineName
                         Ip = ip
-                        TcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
+                        TcpClient = tcpClient
                     }
-                    { model with ConnectedClients = connectionEndpoint :: model.ConnectedClients }, Cmd.ofMsg UdpSendPackage
+                    
+                    { model with TcpConnections = connectionEndpoint :: model.TcpConnections }, Cmd.none
                 else model, Cmd.none
             else model, Cmd.none
-        | RemoteTcpClientConnected client ->
+        | RemoteTcpClientConnected (client, machine) ->
             match client.Client.RemoteEndPoint with
             | :? IPEndPoint as ip ->
-                model.ConnectedListeners.Add(ip.Address, client)
-                model, Cmd.ofSub <| tcpPackagesSubscription client
+                let connectedEndpoint = {
+                    MachineName = machine
+                    Ip = ip
+                    TcpClient = client
+                }
+                { model with TcpConnections = connectedEndpoint :: model.TcpConnections }, Cmd.ofSub <| tcpPackagesSubscription client
             | _ -> model, Cmd.none
         | RemoteChatMessageReceived (m, client) ->
             let isMe =
@@ -148,14 +158,14 @@ module Chat =
                 DateTime = DateTime.Now
                 MessageText = model.MessageInput
             }
-            model.ConnectedClients
+            model.TcpConnections
             |> List.iter (fun ce ->
                 P2PNetwork.tcpSendAsJson ce.TcpClient newMsg
             )
             { model with MessageInput = "";  },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
         | HealthCheckConnectedEndpoints ->
             let successfullyPingedEndpoints, unsuccessfullyPingedEndpoints =
-                model.ConnectedClients
+                model.TcpConnections
                 |> List.partition (fun ce ->
                     try
                         P2PNetwork.tcpSendPing ce.TcpClient
@@ -167,15 +177,10 @@ module Chat =
                 
             unsuccessfullyPingedEndpoints
             |> List.iter (fun ep ->
-                let tcpFound, tcp = model.ConnectedListeners.TryGetValue(ep.Ip.Address)
-                if tcpFound
-                then
-                    tcp.Dispose()
-                    model.ConnectedListeners.Remove(ep.Ip.Address) |> ignore
                 ep.TcpClient.Dispose()
             )
             
-            { model with ConnectedClients = successfullyPingedEndpoints; }, Cmd.none
+            { model with TcpConnections = successfullyPingedEndpoints; }, Cmd.none
         | AppendLocalMessage m ->
             { model with MessagesList = model.MessagesList @ [m] }, Cmd.none
         | TextChanged t ->
@@ -210,7 +215,7 @@ module Chat =
                                             TextBlock.fontStyle FontStyle.Italic
                                             TextBlock.text "В сети: "
                                         ]
-                                        :: (model.ConnectedClients
+                                        :: (model.TcpConnections
                                             |> List.map (fun connection ->
                                                 TextBlock.create [
                                                     TextBlock.fontSize 13
@@ -313,7 +318,7 @@ module Chat =
                     Button.horizontalAlignment HorizontalAlignment.Center
                     Button.horizontalContentAlignment HorizontalAlignment.Center
                     Button.content ">"
-                    Button.isEnabled (model.ConnectedClients.Length > 0)
+                    Button.isEnabled (model.TcpConnections.Length > 0)
                     Button.onClick (fun _ -> dispatch SendMessage)
                 ]
             ]
