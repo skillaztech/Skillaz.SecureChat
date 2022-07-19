@@ -182,7 +182,7 @@ module Chat =
             
             { model with TcpConnections = successfullyPingedEndpoints; }, Cmd.none
         | AppendLocalMessage m ->
-            { model with MessagesList = model.MessagesList @ [m] }, Cmd.none
+            { model with MessagesList = m :: model.MessagesList }, Cmd.none
         | TextChanged t ->
             { model with MessageInput = t }, Cmd.none
 
@@ -266,7 +266,7 @@ module Chat =
                                                                 TextBlock.verticalAlignment VerticalAlignment.Center
                                                                 if m.IsMe
                                                                 then TextBlock.textAlignment TextAlignment.Right
-                                                                TextBlock.text $"{m.Message.Sender}"
+                                                                TextBlock.text $"{m.Message.Sender} - {m.Message.DateTime.ToShortTimeString()}"
                                                             ]
                                                             TextBox.create [
                                                                 TextBox.background "Transparent"
