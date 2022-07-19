@@ -157,24 +157,6 @@ module Chat =
                         true
                     with
                     | _ ->
-                        let remainsListeners =
-                            model.ConnectedListeners
-                            |> List.where (fun listener ->
-                                if listener.Client = null
-                                then
-                                    listener.Dispose()
-                                    false
-                                else
-                                    match ce.Ip, listener.Client.RemoteEndPoint with
-                                    | cRemote, (:? IPEndPoint as lRemote) ->
-                                        if cRemote.Address = lRemote.Address
-                                        then
-                                            listener.Dispose()
-                                            false
-                                        else
-                                            true
-                                    | _ -> true
-                            )
                         false
                 )
             
