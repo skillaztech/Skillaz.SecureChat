@@ -35,6 +35,7 @@
     <ItemGroup>
       <None Include="..\logo.ico">
         <Link>logo.ico</Link>
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
       <Content Include="appsettings.json">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

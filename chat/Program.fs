@@ -1,6 +1,7 @@
 ﻿namespace chat
 
 open Avalonia
+open Avalonia.Controls
 open Avalonia.Controls.ApplicationLifetimes
 open Avalonia.Themes.Fluent
 open Avalonia.FuncUI.Hosts
@@ -11,8 +12,9 @@ type MainWindow() as this =
     inherit HostWindow()
     do
         base.Title <- "SSC"
-        base.Width <- 600.0
+        base.Width <- 800.0
         base.Height <- 400.0
+        base.Icon <- WindowIcon("logo.ico")
 
         //this.VisualRoot.VisualRoot.Renderer.DrawFps <- true
         //this.VisualRoot.VisualRoot.Renderer.DrawDirtyRects <- true

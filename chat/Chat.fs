@@ -58,7 +58,7 @@ module Chat =
     let healthCheckSubscription dispatch =
         let rec tick dispatch = async {
             Msg.HealthCheckConnectedEndpoints |> dispatch
-            do! Task.Delay(2000) |> Async.AwaitTask
+            do! Task.Delay(1000) |> Async.AwaitTask
             do! tick dispatch
         }
         tick dispatch |> Async.Start
@@ -183,26 +183,42 @@ module Chat =
 
     let view model dispatch =
         Grid.create [
-            Grid.columnDefinitions "10, 120, 5, 6*, 5, Auto, 10"
+            Grid.columnDefinitions "10, 150, 5, 6*, 5, Auto, 10"
             Grid.rowDefinitions "10, *, 5, Auto, 10"
             Grid.children [
-                ScrollViewer.create [
-                    ScrollViewer.column 1
-                    ScrollViewer.row 1
-                    ScrollViewer.rowSpan 3
-                    ScrollViewer.content (
-                        StackPanel.create [
-                            StackPanel.spacing 10
-                            StackPanel.orientation Orientation.Vertical
-                            StackPanel.children (
-                                TextBlock.create [ TextBlock.text "В сети: " ]
-                                :: (model.ConnectedClients
-                                    |> List.map (fun connection ->
+                Border.create [
+                    Border.column 1
+                    Border.row 1
+                    Border.rowSpan 3
+                    Border.borderThickness 1
+                    Border.cornerRadius 2
+                    Border.borderBrush "DarkGray"
+                    Border.child (
+                        ScrollViewer.create [
+                            ScrollViewer.column 1
+                            ScrollViewer.row 1
+                            ScrollViewer.rowSpan 3
+                            ScrollViewer.margin 10
+                            ScrollViewer.content (
+                                StackPanel.create [
+                                    StackPanel.spacing 10
+                                    StackPanel.orientation Orientation.Vertical
+                                    StackPanel.children (
                                         TextBlock.create [
-                                            TextBlock.fontSize 12
-                                            TextBlock.text <| connection.MachineName
-                                        ])
-                                )
+                                            TextBlock.fontSize 11
+                                            TextBlock.margin (0, 0, 0, 5)
+                                            TextBlock.fontStyle FontStyle.Italic
+                                            TextBlock.text "В сети: "
+                                        ]
+                                        :: (model.ConnectedClients
+                                            |> List.map (fun connection ->
+                                                TextBlock.create [
+                                                    TextBlock.fontSize 13
+                                                    TextBlock.text <| connection.MachineName
+                                                ])
+                                        )
+                                    )
+                                ]
                             )
                         ]
                     )
@@ -212,20 +228,26 @@ module Chat =
                     Border.column 3
                     Border.columnSpan 3
                     Border.row 1
-                    Border.borderThickness 2
+                    Border.borderThickness 1
                     Border.cornerRadius 2
+                    Border.borderBrush "DarkGray"
                     Border.child (
                         ScrollViewer.create [
                             ScrollViewer.content (
                                 ItemsRepeater.create [
+                                    ItemsRepeater.margin 10
                                     ItemsRepeater.itemTemplate (
                                         let dt m =
                                             Border.create [
                                                 Border.borderThickness 2
                                                 Border.cornerRadius 10
                                                 if m.IsMe
-                                                then Border.background "#9CF4FF"
-                                                else Border.background "#A9FFDD"
+                                                then
+                                                    Border.background "#9CF4FF"
+                                                    Border.margin (20, 2, 2, 2)
+                                                else
+                                                    Border.background "#A9FFDD"
+                                                    Border.margin (2, 2, 20, 2)
                                                 Border.child (
                                                     StackPanel.create [
                                                         StackPanel.children [
@@ -279,6 +301,7 @@ module Chat =
                     TextBox.textWrapping TextWrapping.Wrap
                     TextBox.text model.MessageInput
                     TextBox.maxHeight 200
+                    TextBox.borderBrush "DarkGray"
                     TextBox.onKeyDown (fun o -> if o.Key = Key.Enter && o.KeyModifiers = KeyModifiers.None then dispatch SendMessage; o.Handled <- true)
                     TextBox.onTextChanged(fun text -> dispatch <| TextChanged text)
                 ]
