@@ -43,27 +43,25 @@ module P2PNetwork =
             
             let packageType = BitConverter.ToInt32 packageTypeBuffer
             
-            do! async {
-                match packageType with
-                | 0 ->
-                    invoke TcpPackage.Ping 0 tcpClient
-                    networkStream.WriteByte <| byte 1
-                | pt ->
-                    let length = sizeof<int>
-                    let packageLengthBuffer = Array.zeroCreate length
-                    let! _ = networkStream.ReadAsync(packageLengthBuffer, 0, length) |> Async.AwaitTask
-                    
-                    let length = BitConverter.ToInt32 packageLengthBuffer
-                    let packagePayloadBuffer = Array.zeroCreate length
-                    let! read = networkStream.ReadAsync(packagePayloadBuffer, 0, length) |> Async.AwaitTask
-                    
-                    match pt with
-                    | 202 ->
-                        invoke (TcpPackage.Hello packagePayloadBuffer) read tcpClient
-                    | 1 ->
-                        invoke (TcpPackage.Message packagePayloadBuffer) read tcpClient
-                    | _ -> failwith "Unknown TCP packet"
-            }
+            match packageType with
+            | 0 ->
+                invoke TcpPackage.Ping 0 tcpClient
+                networkStream.WriteByte <| byte 1
+            | pt ->
+                let length = sizeof<int>
+                let packageLengthBuffer = Array.zeroCreate length
+                let! _ = networkStream.ReadAsync(packageLengthBuffer, 0, length) |> Async.AwaitTask
+                
+                let length = BitConverter.ToInt32 packageLengthBuffer
+                let packagePayloadBuffer = Array.zeroCreate length
+                let! read = networkStream.ReadAsync(packagePayloadBuffer, 0, length) |> Async.AwaitTask
+                
+                match pt with
+                | 202 ->
+                    invoke (TcpPackage.Hello packagePayloadBuffer) read tcpClient
+                | 1 ->
+                    invoke (TcpPackage.Message packagePayloadBuffer) read tcpClient
+                | _ -> failwith "Unknown TCP packet"
             
             networkStream.Flush()
             
