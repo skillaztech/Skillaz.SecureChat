@@ -47,6 +47,7 @@ module P2PNetwork =
                 match packageType with
                 | 0 ->
                     invoke TcpPackage.Ping 0 tcpClient
+                    networkStream.WriteByte <| byte 1
                 | pt ->
                     let length = sizeof<int>
                     let packageLengthBuffer = Array.zeroCreate length
@@ -64,6 +65,8 @@ module P2PNetwork =
                     | _ -> failwith "Unknown TCP packet"
             }
             
+            networkStream.Flush()
+            
             do! listenForTcpPackages tcpClient invoke
     }
     
@@ -72,6 +75,8 @@ module P2PNetwork =
         let packageType = BitConverter.GetBytes(0)
         stream.Write(packageType)
         stream.Flush()
+        let res = byte <| stream.ReadByte()
+        if res <> byte 1 then failwith "Bad ping" 
     
     let tcpSendHello (tcp:TcpClient) machineName =
         let stream = tcp.GetStream()
