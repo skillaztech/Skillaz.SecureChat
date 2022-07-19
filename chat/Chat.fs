@@ -33,12 +33,14 @@ module Chat =
     type UdpPackagePayload = {
         MachineName: string
         SecretHash: string
+        UdpMark: string
     }
     
     type Model = {
         AppSettings: AppSettingsJson.Root
         TcpListener: TcpListener
         UdpClient: UdpClient
+        UdpMark: string
         MessageInput: string
         MessagesList: LocalMessage list
         TcpConnections: ConnectedEndpoint list
@@ -47,7 +49,8 @@ module Chat =
     type Msg =
         | UdpSendPackage
         | UdpPackageReceived of byte[] * IPEndPoint
-        | RemoteTcpClientConnected of TcpClient * string
+        | RemoteTcpClientConnected of TcpClient
+        | HelloMessageReceived of TcpClient * string
         | RemoteChatMessageReceived of ChatMessage * TcpClient
         | TextChanged of string
         | AppendLocalMessage of LocalMessage
@@ -72,14 +75,15 @@ module Chat =
         | P2PNetwork.TcpPackage.Ping -> ()
         | P2PNetwork.TcpPackage.Hello bytes ->
             let name = Encoding.UTF8.GetString(bytes, 0, read)
-            Msg.RemoteTcpClientConnected (client, name) |> dispatch
+            Msg.HelloMessageReceived (client, name) |> dispatch
         | P2PNetwork.TcpPackage.Message bytes ->
             let json = Encoding.UTF8.GetString(bytes, 0, read)
             let msg = JsonSerializer.Deserialize<ChatMessage>(json)
             Msg.RemoteChatMessageReceived (msg, client) |> dispatch
         
     let tcpConnectionsSubscription listener dispatch =
-        let handle = handleTcpPackage dispatch
+        let handle tcp =
+            Msg.RemoteTcpClientConnected tcp |> dispatch
         P2PNetwork.listenForTcpConnection listener handle |> Async.Start
         
     let tcpPackagesSubscription tcpClient dispatch =
@@ -92,6 +96,7 @@ module Chat =
             AppSettings = appSettings
             TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.ListenerPort
             UdpClient = P2PNetwork.udpClient IPAddress.Any appSettings.ListenerPort
+            UdpMark = Guid.NewGuid().ToString()
             TcpConnections = []
             MessageInput = ""
             MessagesList = []
@@ -111,14 +116,14 @@ module Chat =
     let update msg model =
         match msg with
         | UdpSendPackage ->
-            let json = JsonSerializer.Serialize({ MachineName = Environment.MachineName; SecretHash = model.AppSettings.SecretHash })
+            let json = JsonSerializer.Serialize({ MachineName = Environment.MachineName; SecretHash = model.AppSettings.SecretHash; UdpMark = model.UdpMark })
             let payload = Encoding.UTF8.GetBytes(json)
             model.UdpClient.Send(payload, payload.Length, IPEndPoint(IPAddress.Broadcast, model.AppSettings.ListenerPort)) |> ignore
             model, Cmd.none
         | UdpPackageReceived (payload, ip) ->
             let payload = Encoding.UTF8.GetString(payload)
             let package = JsonSerializer.Deserialize<UdpPackagePayload>(payload)
-            if package.SecretHash = model.AppSettings.SecretHash
+            if package.SecretHash = model.AppSettings.SecretHash && package.UdpMark <> model.UdpMark
             then
                 if model.TcpConnections |> List.exists (fun o -> o.Ip = ip) |> not
                 then
@@ -134,15 +139,27 @@ module Chat =
                     { model with TcpConnections = connectionEndpoint :: model.TcpConnections }, Cmd.none
                 else model, Cmd.none
             else model, Cmd.none
-        | RemoteTcpClientConnected (client, machine) ->
+        | RemoteTcpClientConnected client ->
             match client.Client.RemoteEndPoint with
-            | :? IPEndPoint as ip ->
+            | :? IPEndPoint as rIp ->
                 let connectedEndpoint = {
-                    MachineName = machine
-                    Ip = ip
+                    MachineName = rIp.ToString()
+                    Ip = rIp
                     TcpClient = client
                 }
                 { model with TcpConnections = connectedEndpoint :: model.TcpConnections }, Cmd.ofSub <| tcpPackagesSubscription client
+            | _ -> model, Cmd.none
+        | HelloMessageReceived (tcpClient, machineName) ->
+            match tcpClient.Client.RemoteEndPoint with
+            | :? IPEndPoint as ip ->
+                let connections =
+                    model.TcpConnections
+                    |> List.map (fun conn ->
+                        if conn.Ip = ip then
+                            { conn with MachineName = machineName }
+                        else conn
+                    )
+                { model with TcpConnections = connections }, Cmd.none
             | _ -> model, Cmd.none
         | RemoteChatMessageReceived (m, client) ->
             let isMe =
