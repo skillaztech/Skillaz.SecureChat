@@ -116,7 +116,11 @@ module Chat =
     let update msg model =
         match msg with
         | UdpSendPackage ->
-            let json = JsonSerializer.Serialize({ MachineName = Environment.MachineName; SecretHash = model.AppSettings.SecretHash; UdpMark = model.UdpMark })
+            let machineName =
+                if String.IsNullOrWhiteSpace(model.AppSettings.MachineName)
+                then Environment.MachineName
+                else model.AppSettings.MachineName
+            let json = JsonSerializer.Serialize({ MachineName = machineName; SecretHash = model.AppSettings.SecretHash; UdpMark = model.UdpMark })
             let payload = Encoding.UTF8.GetBytes(json)
             model.UdpClient.Send(payload, payload.Length, IPEndPoint(IPAddress.Broadcast, model.AppSettings.ListenerPort)) |> ignore
             model, Cmd.none
@@ -136,18 +140,18 @@ module Chat =
                         TcpClient = tcpClient
                     }
                     
-                    { model with TcpConnections = connectionEndpoint :: model.TcpConnections }, Cmd.none
+                    { model with TcpConnections = connectionEndpoint :: model.TcpConnections }, Cmd.ofSub <| tcpPackagesSubscription tcpClient
                 else model, Cmd.none
             else model, Cmd.none
-        | RemoteTcpClientConnected client ->
-            match client.Client.RemoteEndPoint with
+        | RemoteTcpClientConnected tcpClient ->
+            match tcpClient.Client.RemoteEndPoint with
             | :? IPEndPoint as rIp ->
                 let connectedEndpoint = {
                     MachineName = rIp.ToString()
                     Ip = rIp
-                    TcpClient = client
+                    TcpClient = tcpClient
                 }
-                { model with TcpConnections = connectedEndpoint :: model.TcpConnections }, Cmd.ofSub <| tcpPackagesSubscription client
+                { model with TcpConnections = connectedEndpoint :: model.TcpConnections }, Cmd.ofSub <| tcpPackagesSubscription tcpClient
             | _ -> model, Cmd.none
         | HelloMessageReceived (tcpClient, machineName) ->
             match tcpClient.Client.RemoteEndPoint with
@@ -170,11 +174,17 @@ module Chat =
             | true -> model, Cmd.none
             | false -> model, Cmd.ofMsg <| AppendLocalMessage { Message = m; IsMe = isMe }
         | SendMessage ->
+            let machineName =
+                if String.IsNullOrWhiteSpace(model.AppSettings.MachineName)
+                then Environment.MachineName
+                else model.AppSettings.MachineName
+                
             let newMsg = {
-                Sender = model.AppSettings.MachineName
+                Sender = machineName
                 DateTime = DateTime.Now
                 MessageText = model.MessageInput
             }
+            
             model.TcpConnections
             |> List.iter (fun ce ->
                 P2PNetwork.tcpSendAsJson ce.TcpClient newMsg
