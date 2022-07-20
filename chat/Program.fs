@@ -1,11 +1,12 @@
 ﻿namespace chat
 
+open Elmish
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Controls.ApplicationLifetimes
+open Avalonia.FuncUI
 open Avalonia.Themes.Fluent
 open Avalonia.FuncUI.Hosts
-open Elmish
 open Avalonia.FuncUI.Elmish
 
 type MainWindow() as this =
@@ -28,8 +29,9 @@ type MainWindow() as this =
 type App() =
     inherit Application()
 
-    override this.Initialize() = 
+    override this.Initialize() =
         this.Styles.Add (FluentTheme(baseUri = null, Mode = FluentThemeMode.Light))
+        this.Styles.Load "avares://Skillaz.SecureChat/Styles.xaml"
 
     override this.OnFrameworkInitializationCompleted() =
         match this.ApplicationLifetime with

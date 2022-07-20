@@ -20,6 +20,14 @@
         <Compile Include="P2PNetwork.fs" />
         <Compile Include="Chat.fs" />
         <Compile Include="Program.fs" />
+        <None Include="..\logo.ico">
+            <Link>logo.ico</Link>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <Content Include="appsettings.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <AvaloniaResource Include="Styles.xaml" />
     </ItemGroup>
 
     <ItemGroup>
@@ -30,15 +38,5 @@
         <PackageReference Include="JaggerJo.Avalonia.FuncUI.DSL" Version="0.5.3" />
         <PackageReference Include="JaggerJo.Avalonia.FuncUI.Elmish" Version="0.5.3" />
         <PackageReference Update="FSharp.Core" Version="6.0.5" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <None Include="..\logo.ico">
-        <Link>logo.ico</Link>
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <Content Include="appsettings.json">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
     </ItemGroup>
 </Project>

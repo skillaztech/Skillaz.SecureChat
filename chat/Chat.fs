@@ -38,6 +38,7 @@ module Chat =
     
     type Model = {
         AppSettings: AppSettingsJson.Root
+        CurrentMachineName: string
         TcpListener: TcpListener
         UdpClient: UdpClient
         UdpMark: string
@@ -94,6 +95,10 @@ module Chat =
         
         let model = {
             AppSettings = appSettings
+            CurrentMachineName =
+                if String.IsNullOrWhiteSpace(appSettings.MachineName)
+                then Environment.MachineName
+                else appSettings.MachineName
             TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.ListenerPort
             UdpClient = P2PNetwork.udpClient IPAddress.Any appSettings.ListenerPort
             UdpMark = Guid.NewGuid().ToString()
@@ -116,11 +121,7 @@ module Chat =
     let update msg model =
         match msg with
         | UdpSendPackage ->
-            let machineName =
-                if String.IsNullOrWhiteSpace(model.AppSettings.MachineName)
-                then Environment.MachineName
-                else model.AppSettings.MachineName
-            let json = JsonSerializer.Serialize({ MachineName = machineName; SecretHash = model.AppSettings.SecretHash; UdpMark = model.UdpMark })
+            let json = JsonSerializer.Serialize({ MachineName = model.CurrentMachineName; SecretHash = model.AppSettings.SecretHash; UdpMark = model.UdpMark })
             let payload = Encoding.UTF8.GetBytes(json)
             model.UdpClient.Send(payload, payload.Length, IPEndPoint(IPAddress.Broadcast, model.AppSettings.ListenerPort)) |> ignore
             model, Cmd.none
@@ -173,18 +174,12 @@ module Chat =
             match isMe with
             | true -> model, Cmd.none
             | false -> model, Cmd.ofMsg <| AppendLocalMessage { Message = m; IsMe = isMe }
-        | SendMessage ->
-            let machineName =
-                if String.IsNullOrWhiteSpace(model.AppSettings.MachineName)
-                then Environment.MachineName
-                else model.AppSettings.MachineName
-                
+        | SendMessage ->                
             let newMsg = {
-                Sender = machineName
+                Sender = model.CurrentMachineName
                 DateTime = DateTime.Now
                 MessageText = model.MessageInput
             }
-            
             model.TcpConnections
             |> List.iter (fun ce ->
                 P2PNetwork.tcpSendAsJson ce.TcpClient newMsg
@@ -215,6 +210,7 @@ module Chat =
 
     let view model dispatch =
         Grid.create [
+            Grid.classes [ "main-container" ]
             Grid.columnDefinitions "10, 150, 5, 6*, 5, Auto, 10"
             Grid.rowDefinitions "10, *, 5, Auto, 10"
             Grid.children [
@@ -222,9 +218,7 @@ module Chat =
                     Border.column 1
                     Border.row 1
                     Border.rowSpan 3
-                    Border.borderThickness 1
-                    Border.cornerRadius 2
-                    Border.borderBrush "DarkGray"
+                    Border.classes [ "border-connections" ]
                     Border.child (
                         ScrollViewer.create [
                             ScrollViewer.column 1
@@ -236,15 +230,24 @@ module Chat =
                                     StackPanel.spacing 10
                                     StackPanel.orientation Orientation.Vertical
                                     StackPanel.children (
-                                        TextBlock.create [
-                                            TextBlock.fontSize 11
-                                            TextBlock.margin (0, 0, 0, 5)
-                                            TextBlock.fontStyle FontStyle.Italic
-                                            TextBlock.text "В сети: "
+                                        [
+                                            TextBlock.create [
+                                                TextBlock.classes [ "label-connections" ]
+                                                TextBlock.fontSize 11
+                                                TextBlock.margin (0, 0, 0, 5)
+                                                TextBlock.fontStyle FontStyle.Italic
+                                                TextBlock.text "В сети: "
+                                            ]
+                                            TextBlock.create [
+                                                TextBlock.classes [ "connection"; "local" ]
+                                                TextBlock.fontSize 13
+                                                TextBlock.text model.CurrentMachineName
+                                            ]
                                         ]
-                                        :: (model.TcpConnections
+                                        @ (model.TcpConnections
                                             |> List.map (fun connection ->
                                                 TextBlock.create [
+                                                    TextBlock.classes [ "connection"; "remote" ]
                                                     TextBlock.fontSize 13
                                                     TextBlock.text <| connection.MachineName
                                                 ])
@@ -260,9 +263,7 @@ module Chat =
                     Border.column 3
                     Border.columnSpan 3
                     Border.row 1
-                    Border.borderThickness 1
-                    Border.cornerRadius 2
-                    Border.borderBrush "DarkGray"
+                    Border.classes [ "border-chat" ]
                     Border.child (
                         ScrollViewer.create [
                             ScrollViewer.content (
@@ -271,20 +272,16 @@ module Chat =
                                     ItemsRepeater.itemTemplate (
                                         let dt m =
                                             Border.create [
-                                                Border.borderThickness 2
-                                                Border.cornerRadius 10
                                                 if m.IsMe
                                                 then
-                                                    Border.background "#9CF4FF"
-                                                    Border.margin (20, 2, 2, 2)
+                                                    Border.margin (50, 2, 2, 2)
                                                 else
-                                                    Border.background "#A9FFDD"
-                                                    Border.margin (2, 2, 20, 2)
+                                                    Border.margin (2, 2, 50, 2)
                                                 Border.child (
                                                     StackPanel.create [
                                                         StackPanel.children [
                                                             TextBlock.create [
-                                                                TextBlock.background "Transparent"
+                                                                TextBlock.classes [ "chat-msg-sender" ]
                                                                 TextBlock.focusable false
                                                                 TextBlock.textWrapping TextWrapping.Wrap
                                                                 TextBlock.fontSize 10
@@ -296,10 +293,8 @@ module Chat =
                                                                 TextBlock.text $"{m.Message.Sender} - {m.Message.DateTime.ToShortTimeString()}"
                                                             ]
                                                             TextBox.create [
-                                                                TextBox.background "Transparent"
-                                                                TextBox.borderThickness 0
+                                                                TextBlock.classes [ "chat-msg-text" ]
                                                                 TextBox.focusable false
-                                                                TextBox.selectionBrush Brushes.LightBlue
                                                                 TextBox.textWrapping TextWrapping.Wrap
                                                                 TextBox.isReadOnly true
                                                                 TextBox.fontSize 12
@@ -326,26 +321,27 @@ module Chat =
                 ]
                 
                 TextBox.create [
+                    TextBox.classes [ "textbox-msg-input" ]
                     TextBox.column 3
                     TextBox.row 3
                     TextBox.watermark "Введите сообщение..."
                     TextBox.acceptsReturn true
                     TextBox.textWrapping TextWrapping.Wrap
                     TextBox.text model.MessageInput
-                    TextBox.maxHeight 200
-                    TextBox.borderBrush "DarkGray"
                     TextBox.onKeyDown (fun o -> if o.Key = Key.Enter && o.KeyModifiers = KeyModifiers.None then dispatch SendMessage; o.Handled <- true)
                     TextBox.onTextChanged(fun text -> dispatch <| TextChanged text)
                 ]
                 Button.create [
+                    Button.classes [ "button-msg-send" ]
                     Button.column 5
                     Button.row 3
-                    Button.width 64
-                    Button.verticalAlignment VerticalAlignment.Bottom
-                    Button.horizontalAlignment HorizontalAlignment.Center
-                    Button.horizontalContentAlignment HorizontalAlignment.Center
-                    Button.content ">"
-                    Button.isEnabled (model.TcpConnections.Length > 0)
+                    Button.content (
+                        Path.create [
+                            Shapes.Path.classes [ "button-msg-send-icon" ]
+                            Shapes.Path.data "M2,21L23,12L2,3V10L17,12L2,14V21Z"
+                        ]
+                    )
+                    Button.isEnabled (not <| String.IsNullOrWhiteSpace(model.MessageInput))
                     Button.onClick (fun _ -> dispatch SendMessage)
                 ]
             ]

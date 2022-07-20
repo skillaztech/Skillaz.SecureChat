@@ -1,0 +1,47 @@
+﻿<Styles
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <Styles.Resources>
+        <Color x:Key="PrimaryOrangeColor">#FAA819</Color>
+        <Color x:Key="DarkOrangeColor">#F58020</Color>
+        <Color x:Key="LightOrangeColor">#FFCE38</Color>
+        <Color x:Key="DisableColor">#B7A99A</Color>
+    </Styles.Resources>
+    
+    <Style Selector="TextBox.textbox-msg-input">
+        <Setter Property="MaxHeight" Value="200" />
+        <Setter Property="BorderBrush" Value="DarkGray" />
+    </Style>
+    
+    <!-- Buttons -->
+    
+    <Style Selector="Button">
+        <Setter Property="Background" Value="{DynamicResource PrimaryOrangeColor}" />
+    </Style>
+    
+    <Style Selector="Button:disabled /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource DisableColor}"/>
+    </Style>
+    
+    <Style Selector="Button:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource LightOrangeColor}"/>
+    </Style>
+    
+    <Style Selector="Button:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource DarkOrangeColor}"/>
+    </Style>
+    
+    <Style Selector="Button.button-msg-send">
+        <Setter Property="Width" Value="64" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+    
+    <Style Selector="Path.button-msg-send-icon">
+        <Setter Property="Fill" Value="White" />
+    </Style>
+    
+</Styles>
