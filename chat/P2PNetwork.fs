@@ -38,13 +38,13 @@ module P2PNetwork =
             
             let length = sizeof<int>
             let packageTypeBuffer = Array.zeroCreate length
-            let! _ = networkStream.ReadAsync(packageTypeBuffer, 0, length) |> Async.AwaitTask
+            let! read = networkStream.ReadAsync(packageTypeBuffer, 0, length) |> Async.AwaitTask
             
             let packageType = BitConverter.ToInt32 packageTypeBuffer
             
             match packageType with
-            | 0 ->
-                invoke TcpPackage.Ping 0 tcpClient
+            | 210 ->
+                invoke TcpPackage.Ping read tcpClient
             | pt ->
                 let length = sizeof<int>
                 let packageLengthBuffer = Array.zeroCreate length
@@ -57,7 +57,7 @@ module P2PNetwork =
                 match pt with
                 | 202 ->
                     invoke (TcpPackage.Hello packagePayloadBuffer) read tcpClient
-                | 1 ->
+                | 201 ->
                     invoke (TcpPackage.Message packagePayloadBuffer) read tcpClient
                 | _ -> failwith "Unknown TCP packet"
             
@@ -68,7 +68,7 @@ module P2PNetwork =
     
     let tcpSendPing (tcp:TcpClient) =
         let stream = tcp.GetStream()
-        let packageType = BitConverter.GetBytes(0)
+        let packageType = BitConverter.GetBytes(210)
         stream.Write(packageType)
         stream.Flush()
     
@@ -83,7 +83,7 @@ module P2PNetwork =
     
     let tcpSendAsJson (tcp:TcpClient) payload =
         let stream = tcp.GetStream()
-        let packageType = BitConverter.GetBytes(1) |> List.ofArray
+        let packageType = BitConverter.GetBytes(201) |> List.ofArray
         let msg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload)) |> List.ofArray
         let length = BitConverter.GetBytes(msg.Length) |> List.ofArray
         let bytes = packageType @ length @ msg |> Array.ofList
