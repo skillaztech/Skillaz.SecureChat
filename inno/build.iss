@@ -46,7 +46,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 Source: "..\chat\bin\Release\net6.0\*.dll"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-Source: "..\chat\bin\Release\net6.0\appsettings.template.json"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+Source: "..\chat\bin\Release\net6.0\*.json"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "..\chat\bin\Release\net6.0\*.exe"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "..\license.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\logo.ico"; DestDir: "{app}"; Flags: ignoreversion
@@ -180,6 +180,7 @@ begin
     FileReplaceString('\appsettings.template.json', '{SecretHash}', GetSHA1OfString(AppConfigPage.Values[1]));
     FileReplaceString('\appsettings.template.json', '{ListenerPort}', AppConfigPage.Values[2]);
     FileReplaceString('\appsettings.template.json', '{ClientPort}', AppConfigPage.Values[2]);
+    DeleteFile(ExpandConstant('{app}\appsettings.json'));
     RenameFile(ExpandConstant('{app}\appsettings.template.json'), ExpandConstant('{app}\appsettings.json'));
   end;
 end;
