@@ -129,10 +129,10 @@ begin
     '');                 
   AppConfigPage.Add('Наименование клиента:', False);
   AppConfigPage.Values[0] := GetPCName()
-  AppConfigPage.Add('Сохраните к себе сгенерированный в поле ключ или введите уже имеющийся ключ для связи:', False); 
+  AppConfigPage.Add('Сохраните к себе секретный ключ или введите ключ другого клиента для связи:', False); 
   CoCreateGuid(guid);
   AppConfigPage.Values[1] := FormatGuid(guid);
-  AppConfigPage.Add('Выберите TCP/UDP порт для входа в сеть (он должен быть открыт и доступен на машине):', False);
+  AppConfigPage.Add('Выберите TCP/UDP порт для входа в сеть (он должен быть доступен и совпадать с портами других клиентов для корректного подключения):', False);
   AppConfigPage.Values[2] := '63211' 
 end;
 
