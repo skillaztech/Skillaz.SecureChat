@@ -133,16 +133,19 @@ module Chat =
             then
                 if model.TcpConnections |> List.exists (fun o -> o.Ip = ip) |> not
                 then
-                    let tcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
-                    P2PNetwork.tcpSendHello tcpClient Environment.MachineName
+                    try
+                        let tcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
+                        P2PNetwork.tcpSendHello tcpClient Environment.MachineName
                     
-                    let connectionEndpoint = {
-                        MachineName = package.MachineName
-                        Ip = ip
-                        TcpClient = tcpClient
-                    }
-                    
-                    { model with TcpConnections = connectionEndpoint :: model.TcpConnections }, Cmd.ofSub <| tcpPackagesSubscription tcpClient
+                        let connectionEndpoint = {
+                            MachineName = package.MachineName
+                            Ip = ip
+                            TcpClient = tcpClient
+                        }
+                        
+                        { model with TcpConnections = connectionEndpoint :: model.TcpConnections }, Cmd.ofSub <| tcpPackagesSubscription tcpClient
+                    with
+                    | e -> ()
                 else model, Cmd.none
             else model, Cmd.none
         | RemoteTcpClientConnected tcpClient ->
@@ -185,7 +188,10 @@ module Chat =
                 }
                 model.TcpConnections
                 |> List.iter (fun ce ->
-                    P2PNetwork.tcpSendAsJson ce.TcpClient newMsg
+                    try
+                        P2PNetwork.tcpSendAsJson ce.TcpClient newMsg
+                    with
+                    | e -> ()
                 )
                 { model with MessageInput = "";  },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
             else
