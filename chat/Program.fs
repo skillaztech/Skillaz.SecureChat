@@ -15,6 +15,8 @@ type MainWindow() as this =
         base.Title <- "SSC"
         base.Width <- 800.0
         base.Height <- 400.0
+        base.MinWidth <- 800.0
+        base.MinHeight <- 400.0
         base.Icon <- WindowIcon("logo.ico")
 
         //this.VisualRoot.VisualRoot.Renderer.DrawFps <- true

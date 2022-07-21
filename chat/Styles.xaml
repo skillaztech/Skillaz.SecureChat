@@ -6,7 +6,7 @@
         <Color x:Key="PrimaryOrangeColor">#FAA819</Color>
         <Color x:Key="DarkOrangeColor">#F58020</Color>
         <Color x:Key="LightOrangeColor">#FFCE38</Color>
-        <Color x:Key="DisableColor">#B7A99A</Color>
+        <Color x:Key="DisableColor">#DFE0DF</Color>
         
         <FontFamily x:Key="PrimaryRegularFont">avares://Skillaz.SecureChat/fonts/SkillazRegular.ttf#Skillaz</FontFamily>
         <FontFamily x:Key="PrimaryRegularItalicFont">avares://Skillaz.SecureChat/fonts/SkillazRegularItalic.ttf#Skillaz</FontFamily>
@@ -61,16 +61,15 @@
     <Style Selector="Border.border-chat-msg">
         <Setter Property="CornerRadius" Value="8"/>
         <Setter Property="Margin" Value="2 2 100 2"/>
-        <Setter Property="Background" Value="{DynamicResource PrimaryOrangeColor}"/>
+        <Setter Property="Background" Value="#FFF6CC"/>
     </Style>
     
     <Style Selector="Border.border-chat-msg.me">
         <Setter Property="Margin" Value="100 2 2 2"/>
-        <Setter Property="Background" Value="#DFE0DF"/>
+        <Setter Property="Background" Value="#F4F5F4"/>
     </Style>
     
     <Style Selector="TextBox.chat-msg-text">
-        <Setter Property="FontSize" Value="12"/>
         <Setter Property="Margin" Value="4"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -95,7 +94,7 @@
     </Style>
     
     <Style Selector="TextBlock.chat-msg-sender">
-        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontFamily" Value="{DynamicResource PrimaryRegularItalicFont}"/>
         <Setter Property="Margin" Value="8"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
