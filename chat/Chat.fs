@@ -352,6 +352,19 @@ module Chat =
                     )
                     TextBox.onTextChanged(fun text -> dispatch <| TextChanged text)
                 ]
+                
+                TextBlock.create [
+                    TextBlock.column 3
+                    TextBlock.row 3
+                    TextBlock.fontSize 10
+                    TextBlock.margin (6, 2)
+                    TextBlock.foreground "Red"
+                    TextBlock.verticalAlignment VerticalAlignment.Bottom
+                    TextBlock.horizontalAlignment HorizontalAlignment.Right
+                    TextBlock.opacity <| (float model.MessageInput.Length) / 3000.0
+                    TextBlock.text <| (model.MessageInput.Length.ToString()) + " / 3000"
+                ]
+                
                 Button.create [
                     Button.classes [ "button-msg-send" ]
                     Button.column 5

@@ -113,6 +113,7 @@
         <Setter Property="MaxHeight" Value="200"/>
         <Setter Property="AcceptsReturn" Value="True"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="MaxLength" Value="3000"/>
         <Setter Property="BorderBrush" Value="{DynamicResource DisableColor}"/>
     </Style>
     
