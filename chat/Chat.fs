@@ -145,7 +145,7 @@ module Chat =
                         
                         { model with TcpConnections = connectionEndpoint :: model.TcpConnections }, Cmd.ofSub <| tcpPackagesSubscription tcpClient
                     with
-                    | e -> ()
+                    | e -> model, Cmd.none
                 else model, Cmd.none
             else model, Cmd.none
         | RemoteTcpClientConnected tcpClient ->
