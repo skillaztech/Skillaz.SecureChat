@@ -18,12 +18,12 @@
     
     <Style Selector="TextBlock">
         <Setter Property="FontFamily" Value="{DynamicResource PrimaryRegularFont}"/>
-        <Setter Property="Padding" Value="1 6 1 0"/>
+        <Setter Property="Padding" Value="1.5 6 1.5 0"/>
     </Style>
     
     <Style Selector="TextBox">
         <Setter Property="FontFamily" Value="{DynamicResource PrimaryRegularFont}"/>
-        <Setter Property="Padding" Value="1 6 1 0"/>
+        <Setter Property="Padding" Value="1.5 6 1.5 0"/>
         <Setter Property="SelectionBrush" Value="{DynamicResource LightOrangeColor}"/>
     </Style>
     
@@ -53,6 +53,7 @@
     <Style Selector="Path.online-indicator">
         <Setter Property="Width" Value="8"/>
         <Setter Property="Height" Value="8"/>
+        <Setter Property="Margin" Value="0 0 0 0.5"/>
         <Setter Property="Stretch" Value="Fill"/>
         <Setter Property="Fill" Value="#00D890" />
     </Style>
@@ -99,6 +100,7 @@
         <Setter Property="FontSize" Value="10"/>
         <Setter Property="FontFamily" Value="{DynamicResource PrimaryRegularItalicFont}"/>
         <Setter Property="Margin" Value="8"/>
+        <Setter Property="Padding" Value="-1 6 -1 0"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
         <Setter Property="Focusable" Value="False"/>
