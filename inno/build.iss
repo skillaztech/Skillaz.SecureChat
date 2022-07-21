@@ -56,7 +56,7 @@ Name: "{group}\{#ApplicationInstallationFolder}"; Filename: "{app}\{#Application
 Name: "{userdesktop}\{#ApplicationInstallationFolder}"; Filename: "{app}\{#ApplicationExeFile}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#ApplicationExeFile}"; Description: "{cm:LaunchProgram,{#ApplicationInstallationFolder}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#ApplicationExeFile}"; Description: "{cm:LaunchProgram,{#ApplicationName}}"; Flags: nowait postinstall skipifsilent
 
 [Code]                    
 //-----------------------------------------------------------------------------

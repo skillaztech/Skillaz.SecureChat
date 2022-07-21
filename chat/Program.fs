@@ -12,7 +12,7 @@ open Avalonia.FuncUI.Elmish
 type MainWindow() as this =
     inherit HostWindow()
     do
-        base.Title <- "SSC"
+        base.Title <- "Skillaz Secure Chat"
         base.Width <- 800.0
         base.Height <- 400.0
         base.MinWidth <- 800.0
