@@ -7,14 +7,23 @@
         <Color x:Key="DarkOrangeColor">#F58020</Color>
         <Color x:Key="LightOrangeColor">#FFCE38</Color>
         <Color x:Key="DisableColor">#B7A99A</Color>
+        
+        <FontFamily x:Key="PrimaryRegularFont">avares://Skillaz.SecureChat/fonts/SkillazRegular.ttf#Skillaz</FontFamily>
+        <FontFamily x:Key="PrimaryRegularItalicFont">avares://Skillaz.SecureChat/fonts/SkillazRegularItalic.ttf#Skillaz</FontFamily>
+        <FontFamily x:Key="PrimaryBoldFont">avares://Skillaz.SecureChat/fonts/SkillazBold.ttf#Skillaz</FontFamily>
+        <FontFamily x:Key="PrimaryBoldItalicFont">avares://Skillaz.SecureChat/fonts/SkillazBoldItalic.ttf#Skillaz</FontFamily>
     </Styles.Resources>
     
-    <Style Selector="TextBox.textbox-msg-input">
-        <Setter Property="MaxHeight" Value="200" />
-        <Setter Property="BorderBrush" Value="DarkGray" />
+    <!-- General -->
+    
+    <Style Selector="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource PrimaryRegularFont}"/>
     </Style>
     
-    <!-- Buttons -->
+    <Style Selector="TextBox">
+        <Setter Property="FontFamily" Value="{DynamicResource PrimaryRegularFont}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource LightOrangeColor}"/>
+    </Style>
     
     <Style Selector="Button">
         <Setter Property="Background" Value="{DynamicResource PrimaryOrangeColor}" />
@@ -30,6 +39,77 @@
     
     <Style Selector="Button:pressed /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource DarkOrangeColor}"/>
+    </Style>
+    
+    <!-- Connections -->
+    
+    <Style Selector="TextBlock.label-connections">
+        <Setter Property="Margin" Value="0 5"/>
+        <Setter Property="FontFamily" Value="{DynamicResource PrimaryRegularItalicFont}"/>
+    </Style>
+    
+    <!-- Main Chat -->
+    
+    <Style Selector="Border.border-chat-msg">
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Margin" Value="2 2 100 2"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryOrangeColor}"/>
+    </Style>
+    
+    <Style Selector="Border.border-chat-msg.me">
+        <Setter Property="Margin" Value="100 2 2 2"/>
+        <Setter Property="Background" Value="#DFE0DF"/>
+    </Style>
+    
+    <Style Selector="TextBox.chat-msg-text">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Margin" Value="4"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="IsReadOnly" Value="True"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="CaretBrush" Value="Transparent"/>
+    </Style>
+    
+    <Style Selector="TextBox.chat-msg-text:focus /template/ Border">
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    
+    <Style Selector="TextBox.chat-msg-text:pointerover /template/ Border">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    
+    <Style Selector="TextBox.chat-msg-text.me">
+        <Setter Property="TextAlignment" Value="Right"/>
+    </Style>
+    
+    <Style Selector="TextBlock.chat-msg-sender">
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontFamily" Value="{DynamicResource PrimaryRegularItalicFont}"/>
+        <Setter Property="Margin" Value="8"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="Focusable" Value="False"/>
+    </Style>
+    
+    <Style Selector="TextBlock.chat-msg-sender.me">
+        <Setter Property="TextAlignment" Value="Right"/>
+    </Style>
+    
+    <!-- Main Chat Input -->
+    
+    <Style Selector="TextBox.textbox-msg-input">
+        <Setter Property="MaxHeight" Value="200"/>
+        <Setter Property="AcceptsReturn" Value="True"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DisableColor}"/>
+    </Style>
+    
+    <Style Selector="TextBox.textbox-msg-input:focus /template/ Border">
+        <Setter Property="BorderBrush" Value="{DynamicResource DarkOrangeColor}"/>
     </Style>
     
     <Style Selector="Button.button-msg-send">

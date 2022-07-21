@@ -28,6 +28,10 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <AvaloniaResource Include="Styles.xaml" />
+        <AvaloniaResource Include="fonts\SkillazBold.ttf" />
+        <AvaloniaResource Include="fonts\SkillazBoldItalic.ttf" />
+        <AvaloniaResource Include="fonts\SkillazRegular.ttf" />
+        <AvaloniaResource Include="fonts\SkillazRegularItalic.ttf" />
     </ItemGroup>
 
     <ItemGroup>

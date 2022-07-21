@@ -174,17 +174,21 @@ module Chat =
             match isMe with
             | true -> model, Cmd.none
             | false -> model, Cmd.ofMsg <| AppendLocalMessage { Message = m; IsMe = isMe }
-        | SendMessage ->                
-            let newMsg = {
-                Sender = model.CurrentMachineName
-                DateTime = DateTime.Now
-                MessageText = model.MessageInput
-            }
-            model.TcpConnections
-            |> List.iter (fun ce ->
-                P2PNetwork.tcpSendAsJson ce.TcpClient newMsg
-            )
-            { model with MessageInput = "";  },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
+        | SendMessage ->
+            if not <| String.IsNullOrWhiteSpace(model.MessageInput)
+            then
+                let newMsg = {
+                    Sender = model.CurrentMachineName
+                    DateTime = DateTime.Now
+                    MessageText = model.MessageInput
+                }
+                model.TcpConnections
+                |> List.iter (fun ce ->
+                    P2PNetwork.tcpSendAsJson ce.TcpClient newMsg
+                )
+                { model with MessageInput = "";  },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
+            else
+                model, Cmd.none
         | HealthCheckConnectedEndpoints ->
             let successfullyPingedEndpoints, unsuccessfullyPingedEndpoints =
                 model.TcpConnections
@@ -233,14 +237,10 @@ module Chat =
                                         [
                                             TextBlock.create [
                                                 TextBlock.classes [ "label-connections" ]
-                                                TextBlock.fontSize 11
-                                                TextBlock.margin (0, 0, 0, 5)
-                                                TextBlock.fontStyle FontStyle.Italic
                                                 TextBlock.text "В сети: "
                                             ]
                                             TextBlock.create [
                                                 TextBlock.classes [ "connection"; "local" ]
-                                                TextBlock.fontSize 13
                                                 TextBlock.text model.CurrentMachineName
                                             ]
                                         ]
@@ -248,7 +248,6 @@ module Chat =
                                             |> List.map (fun connection ->
                                                 TextBlock.create [
                                                     TextBlock.classes [ "connection"; "remote" ]
-                                                    TextBlock.fontSize 13
                                                     TextBlock.text <| connection.MachineName
                                                 ])
                                         )
@@ -272,38 +271,20 @@ module Chat =
                                     ItemsRepeater.itemTemplate (
                                         let dt m =
                                             Border.create [
-                                                if m.IsMe
-                                                then
-                                                    Border.margin (50, 2, 2, 2)
-                                                else
-                                                    Border.margin (2, 2, 50, 2)
+                                                let classes = [ "border-chat-msg" ] @ (if m.IsMe then [ "me" ] else [])
+                                                Border.classes classes
                                                 Border.child (
                                                     StackPanel.create [
                                                         StackPanel.children [
-                                                            TextBlock.create [
-                                                                TextBlock.classes [ "chat-msg-sender" ]
-                                                                TextBlock.focusable false
-                                                                TextBlock.textWrapping TextWrapping.Wrap
-                                                                TextBlock.fontSize 10
-                                                                TextBlock.margin 8
-                                                                TextBlock.fontStyle FontStyle.Italic
-                                                                TextBlock.verticalAlignment VerticalAlignment.Center
-                                                                if m.IsMe
-                                                                then TextBlock.textAlignment TextAlignment.Right
-                                                                TextBlock.text $"{m.Message.Sender} - {m.Message.DateTime.ToShortTimeString()}"
-                                                            ]
                                                             TextBox.create [
-                                                                TextBlock.classes [ "chat-msg-text" ]
-                                                                TextBox.focusable false
-                                                                TextBox.textWrapping TextWrapping.Wrap
-                                                                TextBox.isReadOnly true
-                                                                TextBox.fontSize 12
-                                                                TextBox.margin 4
-                                                                TextBox.verticalContentAlignment VerticalAlignment.Center
-                                                                TextBox.verticalAlignment VerticalAlignment.Center
-                                                                if m.IsMe
-                                                                then TextBox.textAlignment TextAlignment.Right
+                                                                let classes = [ "chat-msg-text" ] @ if m.IsMe then [ "me" ] else [ ]
+                                                                TextBlock.classes classes
                                                                 TextBox.text $"{m.Message.MessageText}"
+                                                            ]
+                                                            TextBlock.create [
+                                                                let classes = [ "chat-msg-sender" ] @ if m.IsMe then [ "me" ] else [ ]
+                                                                TextBlock.classes classes
+                                                                TextBlock.text $"{m.Message.Sender} {m.Message.DateTime.ToShortTimeString()}"
                                                             ]
                                                         ]
                                                     ]
@@ -325,10 +306,14 @@ module Chat =
                     TextBox.column 3
                     TextBox.row 3
                     TextBox.watermark "Введите сообщение..."
-                    TextBox.acceptsReturn true
-                    TextBox.textWrapping TextWrapping.Wrap
                     TextBox.text model.MessageInput
-                    TextBox.onKeyDown (fun o -> if o.Key = Key.Enter && o.KeyModifiers = KeyModifiers.None then dispatch SendMessage; o.Handled <- true)
+                    TextBox.onKeyDown (fun o ->
+                        if o.Key = Key.Enter
+                           && o.KeyModifiers = KeyModifiers.None
+                        then
+                            dispatch SendMessage
+                            o.Handled <- true
+                    )
                     TextBox.onTextChanged(fun text -> dispatch <| TextChanged text)
                 ]
                 Button.create [
