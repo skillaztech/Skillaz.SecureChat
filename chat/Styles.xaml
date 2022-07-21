@@ -95,6 +95,7 @@
     
     <Style Selector="TextBlock.chat-msg-sender">
         <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="#9A9682"/>
         <Setter Property="FontFamily" Value="{DynamicResource PrimaryRegularItalicFont}"/>
         <Setter Property="Margin" Value="8"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
