@@ -1,7 +1,7 @@
 ﻿namespace chat
 
 open System
-open System.Collections.Generic
+open Avalonia.FuncUI.DSL
 open System.Net
 open System.Net.Sockets
 open System.Text
@@ -9,12 +9,10 @@ open System.Text.Json
 open System.Threading.Tasks
 open Avalonia.Controls.Primitives
 open Avalonia.Input
+open Avalonia.Layout
 open Elmish
 open Avalonia.FuncUI
-open Avalonia.Media
 open Avalonia.Controls
-open Avalonia.FuncUI.DSL
-open Avalonia.Layout
 open chat.Message
 open AppSettings
 
@@ -354,6 +352,7 @@ module Chat =
                     TextBlock.foreground "Red"
                     TextBlock.verticalAlignment VerticalAlignment.Bottom
                     TextBlock.horizontalAlignment HorizontalAlignment.Right
+                    TextBlock.isHitTestVisible false
                     TextBlock.opacity <| (float model.MessageInput.Length) / 3000.0
                     TextBlock.text <| (model.MessageInput.Length.ToString()) + " / 3000"
                 ]
