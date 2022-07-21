@@ -46,7 +46,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 Source: "..\chat\bin\Release\net6.0\*.dll"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-Source: "..\chat\bin\Release\net6.0\*.json"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+Source: "..\chat\bin\Release\net6.0\appsettings.template.json"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "..\chat\bin\Release\net6.0\*.exe"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "..\license.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\logo.ico"; DestDir: "{app}"; Flags: ignoreversion
@@ -73,6 +73,24 @@ begin
   Result := (RegQueryStringValue(HKLM, UninstallKey, 'UninstallString', Value) or
     RegQueryStringValue(HKCU, UninstallKey, 'UninstallString', Value)) and (Value <> '');
 end;          
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+//    Getting PC Name
+//-----------------------------------------------------------------------------
+function GetComputerName(lpBuffer: AnsiString; var nSize: DWORD): BOOL;
+external 'GetComputerNameA@kernel32.dll';
+
+function GetPCName: string;
+var
+  Size: Cardinal;
+  buffer: AnsiString;
+begin
+  Size := 16;
+  SetLength(buffer, Size);
+  GetComputerName(buffer, Size);
+  Result := buffer;
+end;
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -107,11 +125,15 @@ end;
 procedure InitializeWizard;
 begin
   AppConfigPage := CreateInputQueryPage(wpLicense,
-    'Заполните конфигурацию', 'Пожалуйста, заполните конфигурацию машины',
-    '');
+    'Заполните конфигурацию', 'Пожалуйста, заполните конфигурацию приложения',
+    '');                 
+  AppConfigPage.Add('Наименование клиента:', False);
+  AppConfigPage.Values[0] := GetPCName()
   AppConfigPage.Add('Сохраните к себе сгенерированный в поле ключ или введите уже имеющийся ключ для связи:', False); 
   CoCreateGuid(guid);
-  AppConfigPage.Values[0] := FormatGuid(guid);
+  AppConfigPage.Values[1] := FormatGuid(guid);
+  AppConfigPage.Add('Выберите TCP/UDP порт для входа в сеть (он должен быть открыт и доступен на машине):', False);
+  AppConfigPage.Values[2] := '63211' 
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -119,7 +141,7 @@ begin
   Result := (PageID = AppConfigPage.ID) and IsUpgrade;
 end;
 
-function FileReplaceString(ReplaceString: string):boolean;
+function FileReplaceString(FilePath: string; WhatReplace: string; ReplaceString: string):boolean;
 var
   MyFile : TStrings;
   MyText : string;
@@ -129,15 +151,15 @@ begin
   try
     Result := true;
     try
-      MyFile.LoadFromFile(ExpandConstant('{app}' + '\appsettings.json'));
+      MyFile.LoadFromFile(ExpandConstant('{app}' + FilePath));
       Log('File loaded');
       MyText := MyFile.Text;
       { Only save if text has been changed. }
-      if StringChangeEx(MyText, '{SecretHash}', GetSHA1OfString(ReplaceString), True) > 0 then
+      if StringChangeEx(MyText, WhatReplace, ReplaceString, True) > 0 then
       begin;
         Log('Inserted');
         MyFile.Text := MyText;
-        MyFile.SaveToFile(ExpandConstant('{app}' + '\appsettings.json'));
+        MyFile.SaveToFile(ExpandConstant('{app}' + FilePath));
         Log('File saved');
       end;
     except
@@ -153,8 +175,12 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if (CurStep = ssPostInstall) and (not IsUpgradeCached)  then
   begin
-    Log('File installed, replacing...');
-    FileReplaceString(AppConfigPage.Values[0]);
+    Log('File installed, replacing...');            
+    FileReplaceString('\appsettings.template.json', '{MachineName}', AppConfigPage.Values[0]);
+    FileReplaceString('\appsettings.template.json', '{SecretHash}', GetSHA1OfString(AppConfigPage.Values[1]));
+    FileReplaceString('\appsettings.template.json', '{ListenerPort}', AppConfigPage.Values[2]);
+    FileReplaceString('\appsettings.template.json', '{ClientPort}', AppConfigPage.Values[2]);
+    RenameFile(ExpandConstant('{app}\appsettings.template.json'), ExpandConstant('{app}\appsettings.json'));
   end;
 end;
 //-----------------------------------------------------------------------------

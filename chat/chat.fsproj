@@ -27,6 +27,9 @@
         <Content Include="appsettings.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
+        <Content Include="appsettings.template.json">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
         <AvaloniaResource Include="Styles.xaml" />
         <AvaloniaResource Include="fonts\SkillazBold.ttf" />
         <AvaloniaResource Include="fonts\SkillazBoldItalic.ttf" />
