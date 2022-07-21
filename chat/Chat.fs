@@ -300,32 +300,25 @@ module Chat =
                                     ItemsRepeater.margin 10
                                     ItemsRepeater.itemTemplate (
                                         let dt m =
-                                            Grid.create [
-                                                let colDef = if m.IsMe then "150, *" else "*, 150"
-                                                Grid.columnDefinitions colDef
-                                                Grid.children [
-                                                    Border.create [
-                                                        Border.column <| if m.IsMe then 1 else 0
-                                                        let classes = [ "border-chat-msg" ] @ (if m.IsMe then [ "me" ] else [])
-                                                        Border.classes classes
-                                                        Border.child (
-                                                            StackPanel.create [
-                                                                StackPanel.children [
-                                                                    TextBox.create [
-                                                                        let classes = [ "chat-msg-text" ] @ if m.IsMe then [ "me" ] else [ ]
-                                                                        TextBlock.classes classes
-                                                                        TextBox.text $"{m.Message.MessageText}"
-                                                                    ]
-                                                                    TextBlock.create [
-                                                                        let classes = [ "chat-msg-sender" ] @ if m.IsMe then [ "me" ] else [ ]
-                                                                        TextBlock.classes classes
-                                                                        TextBlock.text $"{m.Message.Sender}        {m.Message.DateTime.ToShortTimeString()}"
-                                                                    ]
-                                                                ]
+                                            Border.create [
+                                                let classes = [ "border-chat-msg" ] @ (if m.IsMe then [ "me" ] else [])
+                                                Border.classes classes
+                                                Border.child (
+                                                    StackPanel.create [
+                                                        StackPanel.children [
+                                                            TextBox.create [
+                                                                let classes = [ "chat-msg-text" ] @ if m.IsMe then [ "me" ] else [ ]
+                                                                TextBlock.classes classes
+                                                                TextBox.text $"{m.Message.MessageText}"
                                                             ]
-                                                        )
+                                                            TextBlock.create [
+                                                                let classes = [ "chat-msg-sender" ] @ if m.IsMe then [ "me" ] else [ ]
+                                                                TextBlock.classes classes
+                                                                TextBlock.text $"{m.Message.Sender}        {m.Message.DateTime.ToShortTimeString()}"
+                                                            ]
+                                                        ]
                                                     ]
-                                                ]
+                                                )
                                             ]
                                         DataTemplateView<LocalMessage>.create dt
                                     )

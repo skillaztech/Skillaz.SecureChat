@@ -60,12 +60,15 @@
     
     <Style Selector="Border.border-chat-msg">
         <Setter Property="CornerRadius" Value="8"/>
-        <Setter Property="Margin" Value="2 2 100 2"/>
+        <Setter Property="Margin" Value="2"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="VerticalAlignment" Value="Stretch"/>
+        <Setter Property="MaxWidth" Value="680"/>
         <Setter Property="Background" Value="#FFF6CC"/>
     </Style>
     
     <Style Selector="Border.border-chat-msg.me">
-        <Setter Property="Margin" Value="100 2 2 2"/>
+        <Setter Property="HorizontalAlignment" Value="Right"/>
         <Setter Property="Background" Value="#F4F5F4"/>
     </Style>
     
