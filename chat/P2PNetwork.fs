@@ -60,6 +60,7 @@ module P2PNetwork =
                         invoke (TcpPackage.Hello packagePayloadBuffer) read tcpClient
                     | 201 ->
                         invoke (TcpPackage.Message packagePayloadBuffer) read tcpClient
+                    | _ -> ()
                 
                 networkStream.Flush()
             with
