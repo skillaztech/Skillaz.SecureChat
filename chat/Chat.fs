@@ -7,6 +7,7 @@ open System.Net.Sockets
 open System.Text
 open System.Text.Json
 open System.Threading.Tasks
+open Avalonia.Controls.Primitives
 open Avalonia.Input
 open Elmish
 open Avalonia.FuncUI
@@ -215,7 +216,7 @@ module Chat =
     let view model dispatch =
         Grid.create [
             Grid.classes [ "main-container" ]
-            Grid.columnDefinitions "10, 150, 5, 6*, 5, Auto, 10"
+            Grid.columnDefinitions "10, 180, 5, 6*, 5, Auto, 10"
             Grid.rowDefinitions "10, *, 5, Auto, 10"
             Grid.children [
                 Border.create [
@@ -229,27 +230,48 @@ module Chat =
                             ScrollViewer.row 1
                             ScrollViewer.rowSpan 3
                             ScrollViewer.margin 10
+                            ScrollViewer.horizontalScrollBarVisibility ScrollBarVisibility.Auto
                             ScrollViewer.content (
                                 StackPanel.create [
                                     StackPanel.spacing 10
                                     StackPanel.orientation Orientation.Vertical
                                     StackPanel.children (
+                                        let onlineIndicator =
+                                            Path.create [
+                                                Shapes.Path.classes [ "online-indicator" ]
+                                                Shapes.Path.data "M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                                            ]
                                         [
                                             TextBlock.create [
                                                 TextBlock.classes [ "label-connections" ]
-                                                TextBlock.text "В сети: "
+                                                TextBlock.text "В сети:"
                                             ]
-                                            TextBlock.create [
-                                                TextBlock.classes [ "connection"; "local" ]
-                                                TextBlock.text model.CurrentMachineName
+                                            StackPanel.create [
+                                                StackPanel.spacing 5
+                                                StackPanel.orientation Orientation.Horizontal
+                                                StackPanel.verticalAlignment VerticalAlignment.Center
+                                                StackPanel.children [
+                                                    onlineIndicator
+                                                    TextBlock.create [
+                                                        TextBlock.classes [ "connection"; "local" ]
+                                                        TextBlock.text model.CurrentMachineName
+                                                    ]
+                                                ]
                                             ]
                                         ]
                                         @ (model.TcpConnections
                                             |> List.map (fun connection ->
-                                                TextBlock.create [
-                                                    TextBlock.classes [ "connection"; "remote" ]
-                                                    TextBlock.text <| connection.MachineName
-                                                ])
+                                                StackPanel.create [
+                                                    StackPanel.orientation Orientation.Horizontal
+                                                    StackPanel.children [
+                                                        onlineIndicator
+                                                        TextBlock.create [
+                                                            TextBlock.classes [ "connection"; "remote" ]
+                                                            TextBlock.text connection.MachineName
+                                                        ]
+                                                    ]
+                                                ]
+                                            )
                                         )
                                     )
                                 ]
