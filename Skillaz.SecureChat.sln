@@ -4,6 +4,13 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Skillaz.SecureChat", "src\S
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{00E428E4-3C51-4C6B-8DF8-1C1372EFD29D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "root", "root", "{D25CB71C-312B-486C-84E1-7F00BC9311E2}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		license.md = license.md
+		logo.ico = logo.ico
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
