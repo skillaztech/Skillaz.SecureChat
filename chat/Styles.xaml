@@ -43,6 +43,23 @@
     
     <!-- Connections -->
     
+    <Style Selector="TextBlock.label-secret-code">
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    </Style>
+    
+    <Style Selector="Button.button-show-secret-code">
+        <Setter Property="Width" Value="64" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+    
+    <Style Selector="Path.button-show-secret-code-icon">
+        <Setter Property="Fill" Value="White" />
+    </Style>
+    
     <Style Selector="TextBlock.label-connections">
         <Setter Property="Margin" Value="0 5"/>
         <Setter Property="FontFamily" Value="{DynamicResource PrimaryRegularItalicFont}"/>

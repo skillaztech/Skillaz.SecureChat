@@ -114,7 +114,6 @@ const
 var
 AppConfigPage: TInputQueryWizardPage;
 IsUpgradeCached: Boolean;
-guid: TGuid;
 
 function InitializeSetup(): Boolean;
 begin
@@ -129,9 +128,8 @@ begin
     '');                 
   AppConfigPage.Add('Наименование клиента:', False);
   AppConfigPage.Values[0] := GetPCName()
-  AppConfigPage.Add('Сохраните к себе секретный ключ или введите ключ другого клиента для связи:', False); 
-  CoCreateGuid(guid);
-  AppConfigPage.Values[1] := FormatGuid(guid);
+  AppConfigPage.Add('Сохраните к себе секретный код или введите ключ другого клиента для связи:', False); 
+  AppConfigPage.Values[1] := IntToStr(Random(1000000));
   AppConfigPage.Add('Выберите TCP/UDP порт для входа в сеть (он должен быть доступен и совпадать с портами других клиентов для корректного подключения):', False);
   AppConfigPage.Values[2] := '63211' 
 end;
@@ -177,7 +175,7 @@ begin
   begin
     Log('File installed, replacing...');            
     FileReplaceString('\appsettings.template.json', '{MachineName}', AppConfigPage.Values[0]);
-    FileReplaceString('\appsettings.template.json', '{SecretHash}', GetSHA1OfString(AppConfigPage.Values[1]));
+    FileReplaceString('\appsettings.template.json', '{SecretCode}', AppConfigPage.Values[1]);
     FileReplaceString('\appsettings.template.json', '{ListenerPort}', AppConfigPage.Values[2]);
     FileReplaceString('\appsettings.template.json', '{ClientPort}', AppConfigPage.Values[2]);
     DeleteFile(ExpandConstant('{app}\appsettings.json'));
