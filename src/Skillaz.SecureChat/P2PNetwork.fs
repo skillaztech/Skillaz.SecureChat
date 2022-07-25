@@ -1,4 +1,4 @@
-namespace chat
+namespace Skillaz.SecureChat
 
 open System
 open System.Net

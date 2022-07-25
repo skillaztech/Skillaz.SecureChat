@@ -11,7 +11,7 @@
         <AssemblyVersion>1.0.0.0</AssemblyVersion>
         <FileVersion>1.0.0.0</FileVersion>
         <NeutralLanguage>ru</NeutralLanguage>
-        <ApplicationIcon>..\logo.ico</ApplicationIcon>
+        <ApplicationIcon>..\..\logo.ico</ApplicationIcon>
     </PropertyGroup>
 
     <ItemGroup>
@@ -20,10 +20,6 @@
         <Compile Include="P2PNetwork.fs" />
         <Compile Include="Chat.fs" />
         <Compile Include="Program.fs" />
-        <None Include="..\logo.ico">
-            <Link>logo.ico</Link>
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </None>
         <Content Include="appsettings.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
@@ -31,10 +27,15 @@
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <AvaloniaResource Include="Styles.xaml" />
+        <None Include="..\..\logo.ico">
+          <Link>logo.ico</Link>
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
         <AvaloniaResource Include="fonts\SkillazBold.ttf" />
         <AvaloniaResource Include="fonts\SkillazBoldItalic.ttf" />
         <AvaloniaResource Include="fonts\SkillazRegular.ttf" />
         <AvaloniaResource Include="fonts\SkillazRegularItalic.ttf" />
+        <Content Include="installer\build.iss" />
     </ItemGroup>
 
     <ItemGroup>

@@ -1,4 +1,4 @@
-﻿namespace chat
+﻿namespace Skillaz.SecureChat
 
 open FSharp.Data
 
@@ -7,5 +7,3 @@ module AppSettings =
     
     let load (path:string) =
         AppSettingsJson.Load path
-    
-        

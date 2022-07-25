@@ -1,4 +1,4 @@
-﻿namespace chat
+﻿namespace Skillaz.SecureChat
 
 open System
 open Avalonia.FuncUI.DSL
@@ -13,7 +13,7 @@ open Avalonia.Layout
 open Elmish
 open Avalonia.FuncUI
 open Avalonia.Controls
-open chat.Message
+open Skillaz.SecureChat.Message
 open AppSettings
 
 module Chat =
@@ -72,28 +72,26 @@ module Chat =
             Msg.UdpPackageReceived (payload, endpoint) |> dispatch |> ignore
         P2PNetwork.listenForUdpPackage listener invoke |> Async.Start
         
-    let handleTcpPackage dispatch packageType read client =
-        match packageType with
-        | P2PNetwork.TcpPackage.Ping -> ()
-        | P2PNetwork.TcpPackage.Hello bytes ->
-            let name = Encoding.UTF8.GetString(bytes, 0, read)
-            Msg.HelloMessageReceived (client, name) |> dispatch
-        | P2PNetwork.TcpPackage.Message bytes ->
-            let json = Encoding.UTF8.GetString(bytes, 0, read)
-            let msg = JsonSerializer.Deserialize<ChatMessage>(json)
-            Msg.RemoteChatMessageReceived (msg, client) |> dispatch
-        
     let tcpConnectionsSubscription listener dispatch =
         let handle tcp =
             Msg.RemoteTcpClientConnected tcp |> dispatch
         P2PNetwork.listenForTcpConnection listener handle |> Async.Start
         
     let tcpPackagesSubscription tcpClient dispatch =
+        let handleTcpPackage dispatch packageType read client =
+            match packageType with
+            | P2PNetwork.TcpPackage.Ping -> ()
+            | P2PNetwork.TcpPackage.Hello bytes ->
+                let name = Encoding.UTF8.GetString(bytes, 0, read)
+                Msg.HelloMessageReceived (client, name) |> dispatch
+            | P2PNetwork.TcpPackage.Message bytes ->
+                let json = Encoding.UTF8.GetString(bytes, 0, read)
+                let msg = JsonSerializer.Deserialize<ChatMessage>(json)
+                Msg.RemoteChatMessageReceived (msg, client) |> dispatch
         let handle = handleTcpPackage dispatch
         P2PNetwork.listenForTcpPackages tcpClient handle |> Async.Start
     
     let init appSettings =
-        
         let model = {
             AppSettings = appSettings
             CurrentMachineName =
@@ -317,18 +315,6 @@ module Chat =
                         ]
                     ]
                 ]
-                
-//                StackPanel.create [
-//                    StackPanel.column 1
-//                    StackPanel.row 3
-//                    StackPanel.spacing 5
-//                    StackPanel.orientation Orientation.Horizontal
-//                    StackPanel.verticalAlignment VerticalAlignment.Center
-//                    StackPanel.horizontalAlignment HorizontalAlignment.Stretch
-//                    StackPanel.children [
-//                        
-//                    ]
-//                ]
                 
                 Border.create [
                     Border.column 3

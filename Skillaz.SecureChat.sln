@@ -1,8 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "chat", "chat\chat.fsproj", "{944EE6C3-C720-4BEA-9F09-87A1DD41E9CB}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Skillaz.SecureChat", "src\Skillaz.SecureChat\Skillaz.SecureChat.fsproj", "{944EE6C3-C720-4BEA-9F09-87A1DD41E9CB}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "inno", "inno\inno.fsproj", "{592AA34F-20E6-484C-AE8D-D33FEC3B2A10}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{00E428E4-3C51-4C6B-8DF8-1C1372EFD29D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -14,9 +14,8 @@ Global
 		{944EE6C3-C720-4BEA-9F09-87A1DD41E9CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{944EE6C3-C720-4BEA-9F09-87A1DD41E9CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{944EE6C3-C720-4BEA-9F09-87A1DD41E9CB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{592AA34F-20E6-484C-AE8D-D33FEC3B2A10}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{592AA34F-20E6-484C-AE8D-D33FEC3B2A10}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{592AA34F-20E6-484C-AE8D-D33FEC3B2A10}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{592AA34F-20E6-484C-AE8D-D33FEC3B2A10}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{944EE6C3-C720-4BEA-9F09-87A1DD41E9CB} = {00E428E4-3C51-4C6B-8DF8-1C1372EFD29D}
 	EndGlobalSection
 EndGlobal
