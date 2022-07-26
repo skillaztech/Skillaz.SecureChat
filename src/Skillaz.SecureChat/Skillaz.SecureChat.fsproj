@@ -35,7 +35,7 @@
         <AvaloniaResource Include="fonts\SkillazBoldItalic.ttf" />
         <AvaloniaResource Include="fonts\SkillazRegular.ttf" />
         <AvaloniaResource Include="fonts\SkillazRegularItalic.ttf" />
-        <Content Include="installer\build.iss" />
+        <Content Include="installer\installer.iss" />
     </ItemGroup>
 
     <ItemGroup>
