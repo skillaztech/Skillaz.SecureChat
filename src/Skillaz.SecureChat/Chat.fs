@@ -123,7 +123,9 @@ module Chat =
         | UdpSendPackage ->
             let json = JsonSerializer.Serialize({ MachineName = model.CurrentMachineName; SecretCode = model.AppSettings.SecretCode; UdpMark = model.UdpMark })
             let payload = Encoding.UTF8.GetBytes(json)
-            model.UdpClient.Send(payload, payload.Length, IPEndPoint(IPAddress.Broadcast, model.AppSettings.ListenerPort)) |> ignore
+            model.AppSettings.KnownPeers
+            |> Array.map IPEndPoint.Parse
+            |> Array.iter (fun p -> model.UdpClient.Send(payload, payload.Length, p) |> ignore)
             model, Cmd.none
         | UdpPackageReceived (payload, ip) ->
             let payload = Encoding.UTF8.GetString(payload)
@@ -142,7 +144,16 @@ module Chat =
                             TcpClient = tcpClient
                         }
                         
-                        { model with TcpConnections = connectionEndpoint :: model.TcpConnections }, Cmd.ofSub <| tcpPackagesSubscription tcpClient
+                        // TODO: Add saving connected ip to internal storage
+                        
+                        let model = {
+                            model with
+                                TcpConnections = connectionEndpoint :: model.TcpConnections
+                        }
+                        
+                        let cmd = Cmd.ofSub <| tcpPackagesSubscription tcpClient
+                        
+                        model, cmd
                     with
                     | e -> model, Cmd.none
                 else model, Cmd.none
@@ -155,6 +166,9 @@ module Chat =
                     Ip = rIp
                     TcpClient = tcpClient
                 }
+                
+                // TODO: Add saving connected ip to internal storage
+                
                 { model with TcpConnections = connectedEndpoint :: model.TcpConnections }, Cmd.ofSub <| tcpPackagesSubscription tcpClient
             | _ -> model, Cmd.none
         | HelloMessageReceived (tcpClient, machineName) ->
@@ -167,6 +181,9 @@ module Chat =
                             { conn with MachineName = machineName }
                         else conn
                     )
+                    
+                // TODO: Add saving connected ip to internal storage
+                
                 { model with TcpConnections = connections }, Cmd.none
             | _ -> model, Cmd.none
         | RemoteChatMessageReceived (m, client) ->
