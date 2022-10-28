@@ -5,6 +5,7 @@ open System.Net
 open System.Net.Sockets
 open System.Text
 open System.Text.Json
+open System.Threading.Tasks
 
 module P2PNetwork =
     
@@ -23,9 +24,16 @@ module P2PNetwork =
         tcp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true)
         tcp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true)
         tcp.Client.Bind(IPEndPoint(IPAddress.Any, localPort))
-        tcp.SendTimeout <- 2000
-        tcp.ReceiveTimeout <- 2000
-        tcp.Connect(ip, port)
+        
+        let connectTask = tcp.ConnectAsync(ip, port)
+        let cancelConnectByTimeoutTask = Task.Delay 500
+        let timeoutTask = Task.WhenAny [| connectTask; cancelConnectByTimeoutTask |]
+        
+        timeoutTask |> Async.AwaitTask |> Async.RunSynchronously |> ignore
+        
+        if cancelConnectByTimeoutTask.IsCompleted
+        then raise <| TimeoutException "Connection timed out"; 
+        
         tcp
         
     let rec listenForTcpConnection (tcp:TcpListener) invoke = async {
