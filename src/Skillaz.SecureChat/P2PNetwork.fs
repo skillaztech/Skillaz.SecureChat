@@ -23,6 +23,8 @@ module P2PNetwork =
         tcp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true)
         tcp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true)
         tcp.Client.Bind(IPEndPoint(IPAddress.Any, localPort))
+        tcp.SendTimeout <- 2000
+        tcp.ReceiveTimeout <- 2000
         tcp.Connect(ip, port)
         tcp
         

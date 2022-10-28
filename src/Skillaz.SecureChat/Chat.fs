@@ -97,6 +97,7 @@ module Chat =
         model.TcpListener.Start()
         
         let cmd = Cmd.batch [
+            Cmd.ofMsg ConnectToKnownPeers
             Cmd.ofSub <| healthCheckSubscription 
             Cmd.ofSub <| tcpConnectionsSubscription model.TcpListener
         ]
@@ -158,7 +159,9 @@ module Chat =
                     model.TcpConnections
                     |> List.map (fun conn ->
                         if conn.Ip = ip && model.AppSettings.SecretCode = msg.SecretCode
-                        then { conn with MachineName = msg.MachineName; Accessible = true }
+                        then
+                            P2PNetwork.tcpSendHello conn.TcpClient { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode }
+                            { conn with MachineName = msg.MachineName; Accessible = true }
                         else conn
                     )
                     
