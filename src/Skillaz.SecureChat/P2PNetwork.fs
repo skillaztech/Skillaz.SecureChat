@@ -68,6 +68,15 @@ module P2PNetwork =
             
             do! listenForTcpPackages tcpClient invoke
     }
+        
+    let private tcpSendJsonPkg (tcp:TcpClient) (pkgType:int) payload =
+        let stream = tcp.GetStream()
+        let packageType = BitConverter.GetBytes(pkgType) |> List.ofArray
+        let msg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload)) |> List.ofArray
+        let length = BitConverter.GetBytes(msg.Length) |> List.ofArray
+        let bytes = packageType @ length @ msg |> Array.ofList
+        stream.Write(bytes)
+        stream.Flush()
     
     let tcpSendPing (tcp:TcpClient) =
         let stream = tcp.GetStream()
@@ -75,23 +84,12 @@ module P2PNetwork =
         stream.Write(packageType)
         stream.Flush()
     
-    let tcpSendHello (tcp:TcpClient) machineName =
-        let stream = tcp.GetStream()
-        let packageType = BitConverter.GetBytes(202) |> List.ofArray
-        let msg = Encoding.UTF8.GetBytes(s=machineName) |> List.ofArray
-        let length = BitConverter.GetBytes(msg.Length) |> List.ofArray
-        let bytes = packageType @ length @ msg |> Array.ofList
-        stream.Write(bytes)
-        stream.Flush()
+    let tcpSendHello (tcp:TcpClient) payload =
+        tcpSendJsonPkg tcp 202 payload
     
-    let tcpSendAsJson (tcp:TcpClient) payload =
-        let stream = tcp.GetStream()
-        let packageType = BitConverter.GetBytes(201) |> List.ofArray
-        let msg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload)) |> List.ofArray
-        let length = BitConverter.GetBytes(msg.Length) |> List.ofArray
-        let bytes = packageType @ length @ msg |> Array.ofList
-        stream.Write(bytes)
-        stream.Flush()
+    let tcpSendMessage (tcp:TcpClient) payload =
+        tcpSendJsonPkg tcp 201 payload
+        
     
     let udpClient (ip:IPAddress) port =
         new UdpClient(IPEndPoint(ip, port))

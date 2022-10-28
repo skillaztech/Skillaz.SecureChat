@@ -27,20 +27,13 @@ module Chat =
         MachineName: string
         Ip: IPEndPoint
         TcpClient: TcpClient
-    }
-    
-    type UdpPackagePayload = {
-        MachineName: string
-        SecretCode: int
-        UdpMark: string
+        Accessible: bool
     }
     
     type Model = {
         AppSettings: AppSettingsJson.Root
         CurrentMachineName: string
         TcpListener: TcpListener
-        UdpClient: UdpClient
-        UdpMark: string
         MessageInput: string
         MessagesList: LocalMessage list
         SecretCodeVisible: bool
@@ -48,10 +41,10 @@ module Chat =
     }
         
     type Msg =
-        | UdpSendPackage
-        | UdpPackageReceived of byte[] * IPEndPoint
+        | ConnectToKnownPeers
+        | SendHelloToAllConnectedPeers
         | RemoteTcpClientConnected of TcpClient
-        | HelloMessageReceived of TcpClient * string
+        | HelloMessageReceived of HelloMessage * TcpClient
         | RemoteChatMessageReceived of ChatMessage * TcpClient
         | TextChanged of string
         | AppendLocalMessage of LocalMessage
@@ -67,11 +60,6 @@ module Chat =
         }
         tick dispatch |> Async.Start
         
-    let udpSubscription listener dispatch =
-        let invoke (payload:byte[]) endpoint =
-            Msg.UdpPackageReceived (payload, endpoint) |> dispatch |> ignore
-        P2PNetwork.listenForUdpPackage listener invoke |> Async.Start
-        
     let tcpConnectionsSubscription listener dispatch =
         let handle tcp =
             Msg.RemoteTcpClientConnected tcp |> dispatch
@@ -82,8 +70,9 @@ module Chat =
             match packageType with
             | P2PNetwork.TcpPackage.Ping -> ()
             | P2PNetwork.TcpPackage.Hello bytes ->
-                let name = Encoding.UTF8.GetString(bytes, 0, read)
-                Msg.HelloMessageReceived (client, name) |> dispatch
+                let json = Encoding.UTF8.GetString(bytes, 0, read)
+                let msg = JsonSerializer.Deserialize<HelloMessage>(json)
+                Msg.HelloMessageReceived (msg, client) |> dispatch
             | P2PNetwork.TcpPackage.Message bytes ->
                 let json = Encoding.UTF8.GetString(bytes, 0, read)
                 let msg = JsonSerializer.Deserialize<ChatMessage>(json)
@@ -99,8 +88,6 @@ module Chat =
                 then Environment.MachineName
                 else appSettings.MachineName
             TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.ListenerPort
-            UdpClient = P2PNetwork.udpClient IPAddress.Any appSettings.ListenerPort
-            UdpMark = Guid.NewGuid().ToString()
             TcpConnections = []
             MessageInput = ""
             MessagesList = []
@@ -111,53 +98,47 @@ module Chat =
         
         let cmd = Cmd.batch [
             Cmd.ofSub <| healthCheckSubscription 
-            Cmd.ofSub <| udpSubscription model.UdpClient
             Cmd.ofSub <| tcpConnectionsSubscription model.TcpListener
-            Cmd.ofMsg <| UdpSendPackage
         ]
         
         model, cmd
     
     let update msg model =
         match msg with
-        | UdpSendPackage ->
-            let json = JsonSerializer.Serialize({ MachineName = model.CurrentMachineName; SecretCode = model.AppSettings.SecretCode; UdpMark = model.UdpMark })
-            let payload = Encoding.UTF8.GetBytes(json)
-            model.AppSettings.KnownPeers
-            |> Array.map IPEndPoint.Parse
-            |> Array.iter (fun p -> model.UdpClient.Send(payload, payload.Length, p) |> ignore)
-            model, Cmd.none
-        | UdpPackageReceived (payload, ip) ->
-            let payload = Encoding.UTF8.GetString(payload)
-            let package = JsonSerializer.Deserialize<UdpPackagePayload>(payload)
-            if package.SecretCode = model.AppSettings.SecretCode && package.UdpMark <> model.UdpMark
-            then
-                if model.TcpConnections |> List.exists (fun o -> o.Ip = ip) |> not
-                then
+        | ConnectToKnownPeers ->
+            let accessibleConnections =
+                model.AppSettings.KnownPeers
+                |> Array.map IPEndPoint.Parse
+                |> List.ofArray
+                |> List.map (fun ip ->
                     try
                         let tcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
-                        P2PNetwork.tcpSendHello tcpClient Environment.MachineName
-                    
                         let connectionEndpoint = {
-                            MachineName = package.MachineName
+                            MachineName = ip.ToString()
                             Ip = ip
                             TcpClient = tcpClient
+                            Accessible = false
                         }
-                        
-                        // TODO: Add saving connected ip to internal storage
-                        
-                        let model = {
-                            model with
-                                TcpConnections = connectionEndpoint :: model.TcpConnections
-                        }
-                        
-                        let cmd = Cmd.ofSub <| tcpPackagesSubscription tcpClient
-                        
-                        model, cmd
+                        Some connectionEndpoint
                     with
-                    | e -> model, Cmd.none
-                else model, Cmd.none
-            else model, Cmd.none
+                    | e -> None
+                )
+                |> List.where (fun o -> o.IsSome)
+                |> List.choose id
+                
+            let cmds =
+                accessibleConnections
+                |> List.map (fun c -> Cmd.ofSub <| tcpPackagesSubscription c.TcpClient)
+                |> List.append [ Cmd.ofMsg SendHelloToAllConnectedPeers ]
+            
+            { model with TcpConnections = accessibleConnections }, Cmd.batch cmds
+        | SendHelloToAllConnectedPeers ->
+            model.TcpConnections
+            |> List.iter (fun t ->
+                let msg = { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode }
+                P2PNetwork.tcpSendHello t.TcpClient msg
+            )
+            model, Cmd.none
         | RemoteTcpClientConnected tcpClient ->
             match tcpClient.Client.RemoteEndPoint with
             | :? IPEndPoint as rIp ->
@@ -165,20 +146,19 @@ module Chat =
                     MachineName = rIp.ToString()
                     Ip = rIp
                     TcpClient = tcpClient
+                    Accessible = false
                 }
-                
-                // TODO: Add saving connected ip to internal storage
                 
                 { model with TcpConnections = connectedEndpoint :: model.TcpConnections }, Cmd.ofSub <| tcpPackagesSubscription tcpClient
             | _ -> model, Cmd.none
-        | HelloMessageReceived (tcpClient, machineName) ->
+        | HelloMessageReceived (msg, tcpClient) ->
             match tcpClient.Client.RemoteEndPoint with
             | :? IPEndPoint as ip ->
                 let connections =
                     model.TcpConnections
                     |> List.map (fun conn ->
-                        if conn.Ip = ip then
-                            { conn with MachineName = machineName }
+                        if conn.Ip = ip && model.AppSettings.SecretCode = msg.SecretCode
+                        then { conn with MachineName = msg.MachineName; Accessible = true }
                         else conn
                     )
                     
@@ -205,7 +185,7 @@ module Chat =
                 model.TcpConnections
                 |> List.iter (fun ce ->
                     try
-                        P2PNetwork.tcpSendAsJson ce.TcpClient newMsg
+                        P2PNetwork.tcpSendMessage ce.TcpClient newMsg
                     with
                     | e -> ()
                 )
@@ -283,6 +263,7 @@ module Chat =
                                             ]
                                         ]
                                         @ (model.TcpConnections
+                                            |> List.where (fun c -> c.Accessible)
                                             |> List.map (fun connection ->
                                                 StackPanel.create [
                                                     StackPanel.spacing 5
