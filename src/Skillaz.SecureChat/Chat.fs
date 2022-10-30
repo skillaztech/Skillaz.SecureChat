@@ -41,7 +41,7 @@ module Chat =
     }
         
     type Msg =
-        | ConnectToKnownPeers
+        | KnownPeersConnected of ConnectedEndpoint list
         | SendHelloToAllConnectedPeers
         | RemoteTcpClientConnected of TcpClient
         | HelloMessageReceived of HelloMessage * TcpClient
@@ -96,8 +96,29 @@ module Chat =
         
         model.TcpListener.Start()
         
+        let accessibleConnections () = async {
+                return
+                    model.AppSettings.KnownPeers
+                    |> Array.map IPEndPoint.Parse
+                    |> Array.Parallel.map (fun ip ->
+                        try
+                            let tcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
+                            let connectionEndpoint = {
+                                MachineName = ip.ToString()
+                                Ip = ip
+                                TcpClient = tcpClient
+                                Accessible = false
+                            }
+                            Some connectionEndpoint
+                        with
+                        | e -> None
+                    )
+                    |> Array.choose id
+                    |> List.ofArray
+                }
+        
         let cmd = Cmd.batch [
-            Cmd.ofMsg ConnectToKnownPeers
+            Cmd.OfAsync.perform accessibleConnections () KnownPeersConnected
             Cmd.ofSub <| healthCheckSubscription 
             Cmd.ofSub <| tcpConnectionsSubscription model.TcpListener
         ]
@@ -106,27 +127,7 @@ module Chat =
     
     let update msg model =
         match msg with
-        | ConnectToKnownPeers ->
-            let accessibleConnections =
-                model.AppSettings.KnownPeers
-                |> Array.map IPEndPoint.Parse
-                |> List.ofArray
-                |> List.map (fun ip ->
-                    try
-                        let tcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
-                        let connectionEndpoint = {
-                            MachineName = ip.ToString()
-                            Ip = ip
-                            TcpClient = tcpClient
-                            Accessible = false
-                        }
-                        Some connectionEndpoint
-                    with
-                    | e -> None
-                )
-                |> List.where (fun o -> o.IsSome)
-                |> List.choose id
-                
+        | KnownPeersConnected accessibleConnections ->                
             let cmds =
                 accessibleConnections
                 |> List.map (fun c -> Cmd.ofSub <| tcpPackagesSubscription c.TcpClient)
@@ -135,7 +136,8 @@ module Chat =
             { model with TcpConnections = accessibleConnections }, Cmd.batch cmds
         | SendHelloToAllConnectedPeers ->
             model.TcpConnections
-            |> List.iter (fun t ->
+            |> Array.ofList
+            |> Array.Parallel.iter (fun t ->
                 let msg = { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode }
                 P2PNetwork.tcpSendHello t.TcpClient msg
             )
