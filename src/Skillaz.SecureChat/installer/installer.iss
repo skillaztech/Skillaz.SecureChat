@@ -149,7 +149,7 @@ begin
   try
     Result := true;
     try
-      MyFile.LoadFromFile(ExpandConstant('{app}' + FilePath));
+      MyFile.LoadFromFile(FilePath);
       Log('File loaded');
       MyText := MyFile.Text;
       { Only save if text has been changed. }
@@ -157,7 +157,7 @@ begin
       begin;
         Log('Inserted');
         MyFile.Text := MyText;
-        MyFile.SaveToFile(ExpandConstant('{app}' + FilePath));
+        MyFile.SaveToFile(FilePath);
         Log('File saved');
       end;
     except
@@ -174,10 +174,10 @@ begin
   if (CurStep = ssPostInstall) and (not IsUpgradeCached)  then
   begin
     Log('File installed, replacing...');            
-    FileReplaceString('\appsettings.template.json', '{MachineName}', AppConfigPage.Values[0]);
-    FileReplaceString('\appsettings.template.json', '{SecretCode}', AppConfigPage.Values[1]);
-    FileReplaceString('\appsettings.template.json', '{ListenerPort}', AppConfigPage.Values[2]);
-    FileReplaceString('\appsettings.template.json', '{ClientPort}', AppConfigPage.Values[2]);
+    FileReplaceString(ExpandConstant('{app}\appsettings.template.json'), '{MachineName}', AppConfigPage.Values[0]);
+    FileReplaceString(ExpandConstant('{app}\appsettings.template.json'), '{SecretCode}', AppConfigPage.Values[1]);
+    FileReplaceString(ExpandConstant('{app}\appsettings.template.json'), '{ListenerPort}', AppConfigPage.Values[2]);
+    FileReplaceString(ExpandConstant('{app}\appsettings.template.json'), '{ClientPort}', AppConfigPage.Values[2]);
     DeleteFile(ExpandConstant('{app}\appsettings.json'));
     RenameFile(ExpandConstant('{app}\appsettings.template.json'), ExpandConstant('{app}\appsettings.json'));
   end;
