@@ -34,6 +34,7 @@ module Chat =
         AppSettings: AppSettingsJson.Root
         CurrentMachineName: string
         TcpListener: TcpListener
+        TcpMark: Guid
         MessageInput: string
         MessagesList: LocalMessage list
         SecretCodeVisible: bool
@@ -83,11 +84,12 @@ module Chat =
     let init appSettings =
         let model = {
             AppSettings = appSettings
-            CurrentMachineName =
+            CurrentMachineName = 
                 if String.IsNullOrWhiteSpace(appSettings.MachineName)
                 then Environment.MachineName
                 else appSettings.MachineName
             TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.ListenerPort
+            TcpMark = Guid.NewGuid()
             TcpConnections = []
             MessageInput = ""
             MessagesList = []
@@ -138,7 +140,7 @@ module Chat =
             model.TcpConnections
             |> Array.ofList
             |> Array.Parallel.iter (fun t ->
-                let msg = { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode }
+                let msg = { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; TcpMark = model.TcpMark }
                 P2PNetwork.tcpSendHello t.TcpClient msg
             )
             model, Cmd.none
@@ -160,9 +162,9 @@ module Chat =
                 let connections =
                     model.TcpConnections
                     |> List.map (fun conn ->
-                        if conn.Ip = ip && model.AppSettings.SecretCode = msg.SecretCode
+                        if conn.Ip = ip && model.AppSettings.SecretCode = msg.SecretCode && msg.TcpMark <> model.TcpMark
                         then
-                            P2PNetwork.tcpSendHello conn.TcpClient { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode }
+                            P2PNetwork.tcpSendHello conn.TcpClient { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; TcpMark = model.TcpMark }
                             { conn with MachineName = msg.MachineName; Accessible = true }
                         else conn
                     )
@@ -278,7 +280,11 @@ module Chat =
                                                         onlineIndicator
                                                         TextBlock.create [
                                                             TextBlock.classes [ "connection"; "remote" ]
-                                                            TextBlock.text connection.MachineName
+                                                            let machineName =
+                                                                if String.IsNullOrWhiteSpace(connection.MachineName)
+                                                                then connection.Ip.ToString()
+                                                                else connection.MachineName
+                                                            TextBlock.text machineName
                                                         ]
                                                     ]
                                                 ]

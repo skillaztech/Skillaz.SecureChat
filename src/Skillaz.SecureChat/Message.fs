@@ -6,6 +6,7 @@ module Message =
     type HelloMessage = {
         MachineName: string
         SecretCode: int
+        TcpMark: Guid
     }
     type ChatMessage = {
         Sender: string
