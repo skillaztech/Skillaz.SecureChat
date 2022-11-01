@@ -34,6 +34,7 @@ module Chat =
         AppSettings: AppSettingsJson.Root
         CurrentMachineName: string
         TcpListener: TcpListener
+        UnixSocketListener: Socket
         TcpMark: Guid
         MessageInput: string
         MessagesList: LocalMessage list
@@ -89,6 +90,7 @@ module Chat =
                 then Environment.MachineName
                 else appSettings.MachineName
             TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.ListenerPort
+            UnixSocketListener = UnixSocket.unixSocketListener <| System.IO.Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "/ssc/ssc.socket")
             TcpMark = Guid.NewGuid()
             TcpConnections = []
             MessageInput = ""
@@ -97,27 +99,28 @@ module Chat =
         }
         
         model.TcpListener.Start()
+        model.UnixSocketListener.Listen()
         
         let accessibleConnections () = async {
-                return
-                    model.AppSettings.KnownPeers
-                    |> Array.map IPEndPoint.Parse
-                    |> Array.Parallel.map (fun ip ->
-                        try
-                            let tcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
-                            let connectionEndpoint = {
-                                MachineName = ip.ToString()
-                                Ip = ip
-                                TcpClient = tcpClient
-                                Accessible = false
-                            }
-                            Some connectionEndpoint
-                        with
-                        | e -> None
-                    )
-                    |> Array.choose id
-                    |> List.ofArray
-                }
+            return
+                model.AppSettings.KnownPeers
+                |> Array.map IPEndPoint.Parse
+                |> Array.Parallel.map (fun ip ->
+                    try
+                        let tcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
+                        let connectionEndpoint = {
+                            MachineName = ip.ToString()
+                            Ip = ip
+                            TcpClient = tcpClient
+                            Accessible = false
+                        }
+                        Some connectionEndpoint
+                    with
+                    | e -> None
+                )
+                |> Array.choose id
+                |> List.ofArray
+            }
         
         let cmd = Cmd.batch [
             Cmd.OfAsync.perform accessibleConnections () KnownPeersConnected
