@@ -23,6 +23,7 @@ module UnixSocket =
     
     let unixSocketListener (path:string) =
         Directory.CreateDirectory(Path.GetDirectoryName(path)) |> ignore
+        File.Delete(path)
         let socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP)
         socket.Bind(UnixDomainSocketEndPoint(path))
         socket
