@@ -1,6 +1,7 @@
 ﻿namespace Skillaz.SecureChat
 
 open System
+open System.IO
 open Avalonia.FuncUI.DSL
 open System.Net
 open System.Net.Sockets
@@ -34,6 +35,7 @@ module Chat =
         AppSettings: AppSettingsJson.Root
         CurrentMachineName: string
         TcpListener: TcpListener
+        UnixSocketFilePath: string
         UnixSocketListener: Socket
         TcpMark: Guid
         MessageInput: string
@@ -43,8 +45,10 @@ module Chat =
     }
         
     type Msg =
+        | ConnectToKnownPeers of string
         | KnownPeersConnected of ConnectedEndpoint list
         | SendHelloToAllConnectedPeers
+        | UnixSocketClientConnected of Socket
         | RemoteTcpClientConnected of TcpClient
         | HelloMessageReceived of HelloMessage * TcpClient
         | RemoteChatMessageReceived of ChatMessage * TcpClient
@@ -67,6 +71,11 @@ module Chat =
             Msg.RemoteTcpClientConnected tcp |> dispatch
         P2PNetwork.listenForTcpConnection listener handle |> Async.Start
         
+    let unixSocketConnectionsSubscription listener dispatch =
+        let handle socket =
+            Msg.UnixSocketClientConnected socket |> dispatch
+        UnixSocket.listenForSocketConnection listener handle |> Async.Start
+        
     let tcpPackagesSubscription tcpClient dispatch =
         let handleTcpPackage dispatch packageType read client =
             match packageType with
@@ -82,7 +91,14 @@ module Chat =
         let handle = handleTcpPackage dispatch
         P2PNetwork.listenForTcpPackages tcpClient handle |> Async.Start
     
-    let init appSettings =
+    let init (appSettings: AppSettings.AppSettingsJson.Root) =
+        
+        let unixSocketsFolder = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "/ssc/")
+        
+        let unixSocketFilePath =
+            let socketFileName = Environment.UserName
+            Path.Join(unixSocketsFolder, $"{Convert.ToBase64String(Encoding.UTF8.GetBytes(socketFileName))}.socket")
+        
         let model = {
             AppSettings = appSettings
             CurrentMachineName = 
@@ -90,7 +106,8 @@ module Chat =
                 then Environment.MachineName
                 else appSettings.MachineName
             TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.ListenerPort
-            UnixSocketListener = UnixSocket.unixSocketListener <| System.IO.Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "/ssc/ssc.socket")
+            UnixSocketListener = UnixSocket.unixSocketListener unixSocketFilePath
+            UnixSocketFilePath = unixSocketFilePath
             TcpMark = Guid.NewGuid()
             TcpConnections = []
             MessageInput = ""
@@ -101,37 +118,57 @@ module Chat =
         model.TcpListener.Start()
         model.UnixSocketListener.Listen()
         
-        let accessibleConnections () = async {
-            return
-                model.AppSettings.KnownPeers
-                |> Array.map IPEndPoint.Parse
-                |> Array.Parallel.map (fun ip ->
-                    try
-                        let tcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
-                        let connectionEndpoint = {
-                            MachineName = ip.ToString()
-                            Ip = ip
-                            TcpClient = tcpClient
-                            Accessible = false
-                        }
-                        Some connectionEndpoint
-                    with
-                    | e -> None
-                )
-                |> Array.choose id
-                |> List.ofArray
-            }
-        
         let cmd = Cmd.batch [
-            Cmd.OfAsync.perform accessibleConnections () KnownPeersConnected
-            Cmd.ofSub <| healthCheckSubscription 
+            Cmd.ofMsg <| ConnectToKnownPeers unixSocketsFolder
             Cmd.ofSub <| tcpConnectionsSubscription model.TcpListener
+            Cmd.ofSub <| unixSocketConnectionsSubscription model.UnixSocketListener
+            Cmd.ofSub <| healthCheckSubscription 
         ]
         
         model, cmd
     
     let update msg model =
         match msg with
+        | ConnectToKnownPeers unixSocketFilePath ->
+            let accessibleLocalConnections () = async {
+                let existingUnixSockets = Directory.GetFiles(unixSocketFilePath)
+                return
+                    existingUnixSockets
+                    |> Array.Parallel.map (fun socket ->
+                        try
+                            let unixSocketClient = UnixSocket.unixSocketClient socket
+                            Some unixSocketClient
+                        with
+                        | e -> None
+                    )
+                    |> Array.choose id
+                    |> List.ofArray
+            }
+            
+            let accessibleRemoteConnections () = async {
+                return
+                    model.AppSettings.KnownPeers
+                    |> Array.map IPEndPoint.Parse
+                    |> Array.Parallel.map (fun ip ->
+                        try
+                            let tcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
+                            let connectionEndpoint = {
+                                MachineName = ip.ToString()
+                                Ip = ip
+                                TcpClient = tcpClient
+                                Accessible = false
+                            }
+                            Some connectionEndpoint
+                        with
+                        | e -> None
+                    )
+                    |> Array.choose id
+                    |> List.ofArray
+            }
+            
+            // TODO: Access local connections
+            
+            model, Cmd.OfAsync.perform accessibleRemoteConnections () KnownPeersConnected
         | KnownPeersConnected accessibleConnections ->                
             let cmds =
                 accessibleConnections
@@ -159,6 +196,8 @@ module Chat =
                 
                 { model with TcpConnections = connectedEndpoint :: model.TcpConnections }, Cmd.ofSub <| tcpPackagesSubscription tcpClient
             | _ -> model, Cmd.none
+        | UnixSocketClientConnected socket ->
+            model, Cmd.none
         | HelloMessageReceived (msg, tcpClient) ->
             match tcpClient.Client.RemoteEndPoint with
             | :? IPEndPoint as ip ->

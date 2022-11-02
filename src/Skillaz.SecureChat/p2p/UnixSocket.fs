@@ -29,7 +29,7 @@ module UnixSocket =
         socket
         
     let unixSocketClient path =
-        let socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified)
+        let socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP)
         connectSocket socket <| UnixDomainSocketEndPoint(path)
                 
     let rec listenForSocketConnection (socket:Socket) invoke = async {
