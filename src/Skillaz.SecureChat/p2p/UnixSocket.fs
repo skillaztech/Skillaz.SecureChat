@@ -9,12 +9,12 @@ open Skillaz.SecureChat.P2PNetwork
 
 module UnixSocket =
     
-    let connectSocket (socket:Socket) (endpoint:EndPoint) =
+    let private connectSocket (socket:Socket) (endpoint:EndPoint) =
         let connectTask = socket.ConnectAsync(endpoint)
         let cancelConnectByTimeoutTask = Task.Delay 500
         let timeoutTask = Task.WhenAny [| connectTask; cancelConnectByTimeoutTask |]
         
-        timeoutTask |> Async.AwaitTask |> Async.RunSynchronously |> ignore
+        timeoutTask |> Async.AwaitTask |> Async.RunSynchronously |> Async.AwaitTask |> Async.RunSynchronously
         
         if cancelConnectByTimeoutTask.IsCompleted
         then raise <| TimeoutException "Connection timed out"

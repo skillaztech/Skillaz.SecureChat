@@ -26,10 +26,10 @@ module P2PNetwork =
         tcp.Client.Bind(IPEndPoint(IPAddress.Any, localPort))
         
         let connectTask = tcp.ConnectAsync(ip, port)
-        let cancelConnectByTimeoutTask = Task.Delay 500
+        let cancelConnectByTimeoutTask = Task.Delay 2000
         let timeoutTask = Task.WhenAny [| connectTask; cancelConnectByTimeoutTask |]
         
-        timeoutTask |> Async.AwaitTask |> Async.RunSynchronously |> ignore
+        timeoutTask |> Async.AwaitTask |> Async.RunSynchronously |> Async.AwaitTask |> Async.RunSynchronously
         
         if cancelConnectByTimeoutTask.IsCompleted
         then raise <| TimeoutException "Connection timed out"; 
