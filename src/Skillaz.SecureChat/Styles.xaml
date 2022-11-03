@@ -61,10 +61,9 @@
     </Style>
     
     <Style Selector="Button.button-show-settings">
-        <Setter Property="Width" Value="48" />
         <Setter Property="VerticalAlignment" Value="Stretch" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
-        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
     </Style>
     
