@@ -17,6 +17,7 @@
     <ItemGroup>
         <Compile Include="AppSettings.fs" />
         <Compile Include="Message.fs" />
+        <Compile Include="Flyout.fs" />
         <Compile Include="P2PNetwork.fs" />
         <Compile Include="p2p\UnixSocket.fs" />
         <Compile Include="Chat.fs" />
@@ -40,7 +41,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia.Desktop" Version="0.10.16" />
+        <PackageReference Include="Avalonia.Desktop" Version="0.10.18" />
         <PackageReference Include="Avalonia.Diagnostics" Version="0.10.18" />
         <PackageReference Include="FSharp.Data" Version="5.0.2" />
         <PackageReference Include="JaggerJo.Avalonia.FuncUI" Version="0.5.3" />
