@@ -93,7 +93,10 @@ module Chat =
     
     let init (appSettings: AppSettings.AppSettingsJson.Root) =
         
-        let unixSocketsFolder = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "/ssc/")
+        let unixSocketsFolder =
+            if OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
+            then "/tmp/ssc/"
+            else Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "/ssc/")
         
         let unixSocketFilePath =
             let socketFileName = Environment.UserName
