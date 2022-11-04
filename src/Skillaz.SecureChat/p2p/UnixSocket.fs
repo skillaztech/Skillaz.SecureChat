@@ -4,6 +4,8 @@ open System
 open System.IO
 open System.Net
 open System.Net.Sockets
+open System.Text
+open System.Text.Json
 open System.Threading.Tasks
 open Skillaz.SecureChat.P2PNetwork
 
@@ -51,7 +53,7 @@ module UnixSocket =
                 
                 match packageType with
                 | 210 ->
-                    invoke TcpPackage.Ping read
+                    invoke TcpPackage.Ping read socket
                 | pt ->
                     let length = sizeof<int>
                     let packageLengthBuffer = Array.zeroCreate length
@@ -63,9 +65,9 @@ module UnixSocket =
                     
                     match pt with
                     | 202 ->
-                        invoke (TcpPackage.Hello packagePayloadBuffer) read
+                        invoke (TcpPackage.Hello packagePayloadBuffer) read socket
                     | 201 ->
-                        invoke (TcpPackage.Message packagePayloadBuffer) read
+                        invoke (TcpPackage.Message packagePayloadBuffer) read socket
                     | _ -> ()
                 
                 networkStream.Flush()
@@ -74,3 +76,20 @@ module UnixSocket =
             
             do! listenForSocketPackages socket invoke
     }
+    
+    let private sendJsonPkg (socket:Socket) (pkgType:int) payload =
+        let packageType = BitConverter.GetBytes(pkgType) |> List.ofArray
+        let msg = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload)) |> List.ofArray
+        let length = BitConverter.GetBytes(msg.Length) |> List.ofArray
+        let bytes = packageType @ length @ msg |> Array.ofList
+        socket.Send(bytes) |> ignore
+        
+    let sendPing (socket:Socket) =
+        let packageType = BitConverter.GetBytes(210)
+        socket.Send(packageType) |> ignore
+        
+    let sendHello (socket:Socket) payload =
+        sendJsonPkg socket 202 payload
+        
+    let sendMessage (socket:Socket) payload =
+        sendJsonPkg socket 201 payload
