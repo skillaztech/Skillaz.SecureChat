@@ -30,7 +30,7 @@ module Chat =
     
     type ConnectedEndpoint = {
         MachineName: string
-        Ip: EndPoint
+        EndPoint: EndPoint
         Client: ConnectionClient
         Accessible: bool
     }
@@ -119,8 +119,17 @@ module Chat =
             else Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "/ssc/")
         
         let unixSocketFilePath =
+            let appInstancesCount =
+                let appEntryLocation = System.Reflection.Assembly.GetEntryAssembly().Location
+                let woExtension = Path.GetFileNameWithoutExtension(appEntryLocation)
+                let fn =
+                    if OperatingSystem.IsMacOS()
+                    then woExtension.Substring(0, 15)
+                    else woExtension
+                let processes = System.Diagnostics.Process.GetProcessesByName(fn)
+                processes.Length
             let socketFileName = Environment.UserName
-            Path.Join(unixSocketsFolder, $"{Convert.ToBase64String(Encoding.UTF8.GetBytes(socketFileName))}.socket")
+            Path.Join(unixSocketsFolder, $"{Convert.ToBase64String(Encoding.UTF8.GetBytes(socketFileName))}{appInstancesCount}.socket")
         
         let model = {
             AppSettings = appSettings
@@ -154,13 +163,21 @@ module Chat =
         match msg with
         | ConnectToKnownPeers unixSocketFilePath ->
             let accessibleLocalConnections () = async {
-                let existingUnixSockets = Directory.GetFiles(unixSocketFilePath)
+                let existingUnixSockets =
+                    Directory.GetFiles(unixSocketFilePath)
+                    |> Array.where (fun o -> o <> model.UnixSocketFilePath)
                 return
                     existingUnixSockets
                     |> Array.Parallel.map (fun socket ->
                         try
                             let unixSocketClient = UnixSocket.unixSocketClient socket
-                            Some unixSocketClient
+                            let connectionEndpoint = {
+                                MachineName = socket
+                                EndPoint = unixSocketClient.RemoteEndPoint
+                                Client = UnixSocket unixSocketClient
+                                Accessible = false
+                            }
+                            Some connectionEndpoint
                         with
                         | e -> None
                     )
@@ -177,7 +194,7 @@ module Chat =
                             let tcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
                             let connectionEndpoint = {
                                 MachineName = ip.ToString()
-                                Ip = ip
+                                EndPoint = ip
                                 Client = TcpClient tcpClient
                                 Accessible = false
                             }
@@ -189,9 +206,13 @@ module Chat =
                     |> List.ofArray
             }
             
-            // TODO: Access local connections
+            let connections () = async {
+                let! local = accessibleLocalConnections()
+                let! remote = accessibleRemoteConnections()
+                return local @ remote
+            }
             
-            model, Cmd.OfAsync.perform accessibleRemoteConnections () KnownPeersConnected
+            model, Cmd.OfAsync.perform connections () KnownPeersConnected
         | KnownPeersConnected accessibleConnections ->                
             let cmds =
                 accessibleConnections
@@ -216,7 +237,7 @@ module Chat =
             | :? IPEndPoint as rIp ->
                 let connectedEndpoint = {
                     MachineName = rIp.ToString()
-                    Ip = rIp
+                    EndPoint = rIp
                     Client = TcpClient tcpClient
                     Accessible = false
                 }
@@ -226,7 +247,7 @@ module Chat =
         | UnixSocketClientConnected socket ->
             let connectedEndpoint = {
                 MachineName = socket.RemoteEndPoint.ToString()
-                Ip = socket.RemoteEndPoint
+                EndPoint = socket.RemoteEndPoint
                 Client = UnixSocket socket
                 Accessible = false
             }
@@ -239,13 +260,13 @@ module Chat =
                     
                     match client with
                     | TcpClient tcpClient ->
-                        if conn.Ip = tcpClient.Client.RemoteEndPoint && model.AppSettings.SecretCode = msg.SecretCode && msg.ClientMark <> model.CurrentAppMark
+                        if conn.EndPoint = tcpClient.Client.RemoteEndPoint && model.AppSettings.SecretCode = msg.SecretCode && msg.ClientMark <> model.CurrentAppMark
                         then
                             P2PNetwork.tcpSendHello tcpClient { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; ClientMark = model.CurrentAppMark }
                             { conn with MachineName = msg.MachineName; Accessible = true }
                         else conn
                     | UnixSocket socket ->
-                        if conn.Ip = socket.RemoteEndPoint && model.AppSettings.SecretCode = msg.SecretCode && msg.ClientMark <> model.CurrentAppMark
+                        if conn.EndPoint = socket.RemoteEndPoint && model.AppSettings.SecretCode = msg.SecretCode && msg.ClientMark <> model.CurrentAppMark
                         then
                             UnixSocket.sendHello socket { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; ClientMark = model.CurrentAppMark }
                             { conn with MachineName = msg.MachineName; Accessible = true }
@@ -368,7 +389,7 @@ module Chat =
                                                             TextBlock.classes [ "connection"; "remote" ]
                                                             let machineName =
                                                                 if String.IsNullOrWhiteSpace(connection.MachineName)
-                                                                then connection.Ip.ToString()
+                                                                then connection.EndPoint.ToString()
                                                                 else connection.MachineName
                                                             TextBlock.text machineName
                                                         ]

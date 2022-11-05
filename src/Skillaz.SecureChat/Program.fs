@@ -1,5 +1,6 @@
 ﻿namespace Skillaz.SecureChat
 
+open Avalonia.Logging
 open Elmish
 open Avalonia
 open Avalonia.Controls
@@ -48,5 +49,6 @@ module Program =
         AppBuilder
             .Configure<App>()
             .UsePlatformDetect()
+            // .LogToTrace(LogEventLevel.Warning)
             .UseSkia()
             .StartWithClassicDesktopLifetime(args)
