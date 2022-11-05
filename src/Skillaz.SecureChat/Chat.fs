@@ -129,7 +129,7 @@ module Chat =
                 let processes = System.Diagnostics.Process.GetProcessesByName(fn)
                 processes.Length
             let socketFileName = Environment.UserName
-            Path.Join(unixSocketsFolder, $"{Convert.ToBase64String(Encoding.UTF8.GetBytes(socketFileName))}{appInstancesCount}.socket")
+            Path.Join(unixSocketsFolder, $"{appInstancesCount}{Convert.ToBase64String(Encoding.UTF8.GetBytes(socketFileName))}.socket")
         
         let model = {
             AppSettings = appSettings

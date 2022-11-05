@@ -35,8 +35,8 @@ module UnixSocket =
         connectSocket socket <| UnixDomainSocketEndPoint(path)
                 
     let rec listenForSocketConnection (socket:Socket) invoke = async {
-        let! socket = socket.AcceptAsync() |> Async.AwaitTask
-        invoke socket
+        let! client = socket.AcceptAsync() |> Async.AwaitTask
+        invoke client
         do! listenForSocketConnection socket invoke
     }
     
