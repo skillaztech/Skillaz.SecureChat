@@ -1,7 +1,9 @@
 ﻿namespace Skillaz.SecureChat
 
 open System
+open System.Diagnostics
 open System.IO
+open System.Security.Cryptography
 open Avalonia.FuncUI.DSL
 open System.Net
 open System.Net.Sockets
@@ -37,7 +39,7 @@ module Chat =
         TcpListener: Socket
         UnixSocketFilePath: string
         UnixSocketListener: Socket
-        CurrentAppMark: Guid
+        CurrentAppMark: string
         MessageInput: string
         MessagesList: LocalMessage list
         SecretCodeVisible: bool
@@ -87,7 +89,17 @@ module Chat =
         
         P2PNetwork.listenSocketPackages client handleSocket |> Async.Start
     
-    let init (appSettings: AppSettings.AppSettingsJson.Root) =
+    let init (appSettings: AppSettingsJson.Root) =
+        
+        let appMark =
+            let appMarkFilePath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "/ssc/", "appmark.ini")
+            if File.Exists(appMarkFilePath)
+            then File.ReadAllText(appMarkFilePath)
+            else
+                let mark = Guid.NewGuid().ToString()
+                Directory.CreateDirectory(Path.GetDirectoryName(appMarkFilePath)) |> ignore
+                File.WriteAllText(appMarkFilePath, mark)
+                mark
         
         let unixSocketsFolder =
             if OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
@@ -95,17 +107,7 @@ module Chat =
             else Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "/ssc/")
         
         let unixSocketFilePath =
-            let appInstancesCount =
-                let appEntryLocation = System.Reflection.Assembly.GetEntryAssembly().Location
-                let woExtension = Path.GetFileNameWithoutExtension(appEntryLocation)
-                let fn =
-                    if OperatingSystem.IsMacOS()
-                    then woExtension.Substring(0, 15)
-                    else woExtension
-                let processes = System.Diagnostics.Process.GetProcessesByName(fn)
-                processes.Length
-            let socketFileName = Environment.UserName
-            Path.Join(unixSocketsFolder, $"{appInstancesCount}{Convert.ToBase64String(Encoding.UTF8.GetBytes(socketFileName))}.socket")
+            Path.Join(unixSocketsFolder, $"{Convert.ToBase64String(Encoding.UTF8.GetBytes(appMark))}.socket")
         
         let model = {
             AppSettings = appSettings
@@ -116,7 +118,7 @@ module Chat =
             TcpListener = Tcp.listener IPAddress.Any appSettings.ListenerPort
             UnixSocketListener = UnixSocket.listener unixSocketFilePath
             UnixSocketFilePath = unixSocketFilePath
-            CurrentAppMark = Guid.NewGuid()
+            CurrentAppMark = appMark
             Connections = []
             MessageInput = ""
             MessagesList = []
@@ -202,7 +204,7 @@ module Chat =
             model.Connections
             |> Array.ofList
             |> Array.Parallel.iter (fun t ->
-                let msg = { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; ClientMark = model.CurrentAppMark }
+                let msg = { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; AppMark = model.CurrentAppMark }
                 P2PNetwork.sendHello t.Client msg
             )
             model, Cmd.none
@@ -220,9 +222,9 @@ module Chat =
                 model.Connections
                 |> List.map (fun conn ->
                     
-                    if conn.EndPoint = conn.Client.RemoteEndPoint && model.AppSettings.SecretCode = msg.SecretCode && msg.ClientMark <> model.CurrentAppMark
+                    if conn.EndPoint = client.RemoteEndPoint && model.AppSettings.SecretCode = msg.SecretCode && msg.AppMark <> model.CurrentAppMark
                     then
-                        P2PNetwork.sendHello conn.Client { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; ClientMark = model.CurrentAppMark }
+                        P2PNetwork.sendHello conn.Client { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; AppMark = model.CurrentAppMark }
                         { conn with MachineName = msg.MachineName; Accessible = true }
                     else conn
                 )

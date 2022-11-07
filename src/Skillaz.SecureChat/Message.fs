@@ -6,12 +6,12 @@ module Message =
     type HelloMessage = {
         MachineName: string
         SecretCode: int
-        ClientMark: Guid
+        AppMark: string
     }
     type ChatMessage = {
         Sender: string
         MessageText: string
         DateTime: DateTime
-        AppMark: Guid
+        AppMark: string
     }
 
