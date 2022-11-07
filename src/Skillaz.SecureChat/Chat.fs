@@ -24,21 +24,17 @@ module Chat =
         IsMe: bool
     }
     
-    type ConnectionClient =
-        | TcpClient of TcpClient
-        | UnixSocket of Socket
-    
     type ConnectedEndpoint = {
         MachineName: string
         EndPoint: EndPoint
-        Client: ConnectionClient
+        Client: Socket
         Accessible: bool
     }
     
     type Model = {
         AppSettings: AppSettingsJson.Root
         CurrentMachineName: string
-        TcpListener: TcpListener
+        TcpListener: Socket
         UnixSocketFilePath: string
         UnixSocketListener: Socket
         CurrentAppMark: Guid
@@ -52,10 +48,9 @@ module Chat =
         | ConnectToKnownPeers of string
         | KnownPeersConnected of ConnectedEndpoint list
         | SendHelloToAllConnectedPeers
-        | UnixSocketClientConnected of Socket
-        | RemoteTcpClientConnected of TcpClient
-        | HelloMessageReceived of HelloMessage * ConnectionClient
-        | RemoteChatMessageReceived of ChatMessage * ConnectionClient
+        | ClientConnected of Socket
+        | HelloMessageReceived of HelloMessage * Socket
+        | RemoteChatMessageReceived of ChatMessage * Socket
         | TextChanged of string
         | AppendLocalMessage of LocalMessage
         | SendMessage
@@ -70,46 +65,27 @@ module Chat =
         }
         tick dispatch |> Async.Start
         
-    let tcpConnectionsSubscription listener dispatch =
-        let handle tcp =
-            Msg.RemoteTcpClientConnected tcp |> dispatch
-        P2PNetwork.listenForTcpConnection listener handle |> Async.Start
-        
-    let unixSocketConnectionsSubscription listener dispatch =
+    let connectionsSubscription listener dispatch =
         let handle socket =
-            Msg.UnixSocketClientConnected socket |> dispatch
-        UnixSocket.listenForSocketConnection listener handle |> Async.Start
+            Msg.ClientConnected socket |> dispatch
+        P2PNetwork.listenSocket listener handle |> Async.Start
         
     let packagesSubscription client dispatch =
-        let handleTcpPackage dispatch packageType read client  =
-            match packageType with
-            | P2PNetwork.TcpPackage.Ping -> ()
-            | P2PNetwork.TcpPackage.Hello bytes ->
-                let json = Encoding.UTF8.GetString(bytes, 0, read)
-                let msg = JsonSerializer.Deserialize<HelloMessage>(json)
-                Msg.HelloMessageReceived (msg, TcpClient client) |> dispatch
-            | P2PNetwork.TcpPackage.Message bytes ->
-                let json = Encoding.UTF8.GetString(bytes, 0, read)
-                let msg = JsonSerializer.Deserialize<ChatMessage>(json)
-                Msg.RemoteChatMessageReceived (msg, TcpClient client) |> dispatch
-        let handleTcp = handleTcpPackage dispatch
         
         let handleSocketPackage dispatch packageType read socket  =
             match packageType with
-            | P2PNetwork.TcpPackage.Ping -> ()
-            | P2PNetwork.TcpPackage.Hello bytes ->
+            | P2PNetwork.SscPackage.Ping -> ()
+            | P2PNetwork.SscPackage.Hello bytes ->
                 let json = Encoding.UTF8.GetString(bytes, 0, read)
                 let msg = JsonSerializer.Deserialize<HelloMessage>(json)
-                Msg.HelloMessageReceived (msg, UnixSocket socket) |> dispatch
-            | P2PNetwork.TcpPackage.Message bytes ->
+                Msg.HelloMessageReceived (msg, socket) |> dispatch
+            | P2PNetwork.SscPackage.Message bytes ->
                 let json = Encoding.UTF8.GetString(bytes, 0, read)
                 let msg = JsonSerializer.Deserialize<ChatMessage>(json)
-                Msg.RemoteChatMessageReceived (msg, UnixSocket socket) |> dispatch
+                Msg.RemoteChatMessageReceived (msg, socket) |> dispatch
         let handleSocket = handleSocketPackage dispatch
         
-        match client with
-        | TcpClient tcpClient -> P2PNetwork.listenForTcpPackages tcpClient handleTcp |> Async.Start
-        | UnixSocket socket -> UnixSocket.listenForSocketPackages socket handleSocket |> Async.Start
+        P2PNetwork.listenSocketPackages client handleSocket |> Async.Start
     
     let init (appSettings: AppSettings.AppSettingsJson.Root) =
         
@@ -137,8 +113,8 @@ module Chat =
                 if String.IsNullOrWhiteSpace(appSettings.MachineName)
                 then Environment.MachineName
                 else appSettings.MachineName
-            TcpListener = P2PNetwork.tcpListener IPAddress.Any appSettings.ListenerPort
-            UnixSocketListener = UnixSocket.unixSocketListener unixSocketFilePath
+            TcpListener = Tcp.listener IPAddress.Any appSettings.ListenerPort
+            UnixSocketListener = UnixSocket.listener unixSocketFilePath
             UnixSocketFilePath = unixSocketFilePath
             CurrentAppMark = Guid.NewGuid()
             Connections = []
@@ -147,13 +123,13 @@ module Chat =
             SecretCodeVisible = false;
         }
         
-        model.TcpListener.Start()
+        model.TcpListener.Listen()
         model.UnixSocketListener.Listen()
         
         let cmd = Cmd.batch [
             Cmd.ofMsg <| ConnectToKnownPeers unixSocketsFolder
-            Cmd.ofSub <| tcpConnectionsSubscription model.TcpListener
-            Cmd.ofSub <| unixSocketConnectionsSubscription model.UnixSocketListener
+            Cmd.ofSub <| connectionsSubscription model.TcpListener
+            Cmd.ofSub <| connectionsSubscription model.UnixSocketListener
             Cmd.ofSub <| healthCheckSubscription 
         ]
         
@@ -170,11 +146,11 @@ module Chat =
                     existingUnixSockets
                     |> Array.Parallel.map (fun socket ->
                         try
-                            let unixSocketClient = UnixSocket.unixSocketClient socket
+                            let unixSocketClient = UnixSocket.client socket
                             let connectionEndpoint = {
                                 MachineName = socket
                                 EndPoint = unixSocketClient.RemoteEndPoint
-                                Client = UnixSocket unixSocketClient
+                                Client = unixSocketClient
                                 Accessible = false
                             }
                             Some connectionEndpoint
@@ -191,11 +167,11 @@ module Chat =
                     |> Array.map IPEndPoint.Parse
                     |> Array.Parallel.map (fun ip ->
                         try
-                            let tcpClient = P2PNetwork.tcpClient ip.Address ip.Port model.AppSettings.ClientPort
+                            let socket = Tcp.client ip.Address ip.Port model.AppSettings.ClientPort
                             let connectionEndpoint = {
                                 MachineName = ip.ToString()
                                 EndPoint = ip
-                                Client = TcpClient tcpClient
+                                Client = socket
                                 Accessible = false
                             }
                             Some connectionEndpoint
@@ -227,53 +203,29 @@ module Chat =
             |> Array.ofList
             |> Array.Parallel.iter (fun t ->
                 let msg = { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; ClientMark = model.CurrentAppMark }
-                match t.Client with
-                | TcpClient tcpClient -> P2PNetwork.tcpSendHello tcpClient msg
-                | UnixSocket socket -> UnixSocket.sendHello socket msg
+                P2PNetwork.sendHello t.Client msg
             )
             model, Cmd.none
-        | RemoteTcpClientConnected tcpClient ->
-            match tcpClient.Client.RemoteEndPoint with
-            | :? IPEndPoint as rIp ->
-                let connectedEndpoint = {
-                    MachineName = rIp.ToString()
-                    EndPoint = rIp
-                    Client = TcpClient tcpClient
-                    Accessible = false
-                }
-                
-                { model with Connections = connectedEndpoint :: model.Connections }, Cmd.ofSub <| packagesSubscription (TcpClient tcpClient)
-            | _ -> model, Cmd.none
-        | UnixSocketClientConnected socket ->
+        | ClientConnected socket ->
             let connectedEndpoint = {
                 MachineName = socket.RemoteEndPoint.ToString()
                 EndPoint = socket.RemoteEndPoint
-                Client = UnixSocket socket
+                Client = socket
                 Accessible = false
             }
             
-            { model with Connections = connectedEndpoint :: model.Connections }, Cmd.ofSub <| packagesSubscription (UnixSocket socket)
+            { model with Connections = connectedEndpoint :: model.Connections }, Cmd.ofSub <| packagesSubscription socket
         | HelloMessageReceived (msg, client) ->
             let connections =
                 model.Connections
                 |> List.map (fun conn ->
                     
-                    match client with
-                    | TcpClient tcpClient ->
-                        if conn.EndPoint = tcpClient.Client.RemoteEndPoint && model.AppSettings.SecretCode = msg.SecretCode && msg.ClientMark <> model.CurrentAppMark
-                        then
-                            P2PNetwork.tcpSendHello tcpClient { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; ClientMark = model.CurrentAppMark }
-                            { conn with MachineName = msg.MachineName; Accessible = true }
-                        else conn
-                    | UnixSocket socket ->
-                        if conn.EndPoint = socket.RemoteEndPoint && model.AppSettings.SecretCode = msg.SecretCode && msg.ClientMark <> model.CurrentAppMark
-                        then
-                            UnixSocket.sendHello socket { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; ClientMark = model.CurrentAppMark }
-                            { conn with MachineName = msg.MachineName; Accessible = true }
-                        else conn
+                    if conn.EndPoint = conn.Client.RemoteEndPoint && model.AppSettings.SecretCode = msg.SecretCode && msg.ClientMark <> model.CurrentAppMark
+                    then
+                        P2PNetwork.sendHello conn.Client { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; ClientMark = model.CurrentAppMark }
+                        { conn with MachineName = msg.MachineName; Accessible = true }
+                    else conn
                 )
-                
-            // TODO: Add saving connected ip to internal storage
             
             { model with Connections = connections }, Cmd.none
         | RemoteChatMessageReceived (m, client) ->
@@ -293,9 +245,7 @@ module Chat =
                 model.Connections
                 |> List.iter (fun ce ->
                     try
-                        match ce.Client with
-                        | TcpClient tcpClient -> P2PNetwork.tcpSendMessage tcpClient newMsg
-                        | UnixSocket socket -> UnixSocket.sendMessage socket newMsg
+                        P2PNetwork.sendMessage ce.Client newMsg
                     with
                     | e -> ()
                 )
@@ -307,9 +257,7 @@ module Chat =
                 model.Connections
                 |> List.partition (fun ce ->
                     try
-                        match ce.Client with
-                        | TcpClient tcpClient -> P2PNetwork.tcpSendPing tcpClient
-                        | UnixSocket socket -> UnixSocket.sendPing socket
+                        P2PNetwork.sendPing ce.Client
                         true
                     with
                     | _ ->
@@ -318,9 +266,7 @@ module Chat =
                 
             unsuccessfullyPingedEndpoints
             |> List.iter (fun ep ->
-                match ep.Client with
-                | TcpClient tcpClient -> tcpClient.Dispose()
-                | UnixSocket socket -> socket.Dispose()
+                ep.Client.Dispose()
             )
             
             { model with Connections = successfullyPingedEndpoints; }, Cmd.none

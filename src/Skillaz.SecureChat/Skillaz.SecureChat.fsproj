@@ -18,8 +18,9 @@
         <Compile Include="AppSettings.fs" />
         <Compile Include="Message.fs" />
         <Compile Include="Flyout.fs" />
-        <Compile Include="P2PNetwork.fs" />
+        <Compile Include="p2p\P2PNetwork.fs" />
         <Compile Include="p2p\UnixSocket.fs" />
+        <Compile Include="p2p\Tcp.fs" />
         <Compile Include="Chat.fs" />
         <Compile Include="Program.fs" />
         <Content Include="appsettings.json">
