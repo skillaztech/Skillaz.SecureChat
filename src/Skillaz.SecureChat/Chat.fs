@@ -1,9 +1,7 @@
 ﻿namespace Skillaz.SecureChat
 
 open System
-open System.Diagnostics
 open System.IO
-open System.Security.Cryptography
 open Avalonia.FuncUI.DSL
 open System.Net
 open System.Net.Sockets
@@ -115,10 +113,7 @@ module Chat =
         
         let model = {
             AppSettings = appSettings
-            CurrentMachineName = 
-                if String.IsNullOrWhiteSpace(appSettings.MachineName)
-                then Environment.MachineName
-                else appSettings.MachineName
+            CurrentMachineName = Environment.MachineName
             TcpListener = Tcp.listener IPAddress.Any appSettings.ListenerPort
             UnixSocketListener = UnixSocket.listener unixSocketFilePath
             UnixSocketFilePath = unixSocketFilePath
@@ -204,14 +199,6 @@ module Chat =
                 |> List.append [ Cmd.ofMsg SendHelloToAllConnectedPeers ]
             
             { model with Connections = accessibleConnections }, Cmd.batch cmds
-        | SendHelloToAllConnectedPeers ->
-            model.Connections
-            |> Array.ofList
-            |> Array.Parallel.iter (fun t ->
-                let msg = { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; AppMark = model.CurrentAppMark }
-                P2PNetwork.sendHello t.Client msg
-            )
-            model, Cmd.none
         | ClientConnected socket ->
             let connectedEndpoint = {
                 MachineName = socket.RemoteEndPoint.ToString()
@@ -221,6 +208,18 @@ module Chat =
             }
             
             { model with Connections = connectedEndpoint :: model.Connections }, Cmd.ofSub <| packagesSubscription socket
+        | SendHelloToAllConnectedPeers ->
+            model.Connections
+            |> Array.ofList
+            |> Array.Parallel.iter (fun t ->
+                let msg = {
+                    MachineName = model.CurrentMachineName
+                    AppMark = model.CurrentAppMark
+                    SecretCode = model.AppSettings.SecretCode
+                }
+                P2PNetwork.sendHello t.Client msg
+            )
+            model, Cmd.none
         | HelloMessageReceived (msg, client) ->
             let connections =
                 model.Connections
@@ -228,7 +227,7 @@ module Chat =
                     
                     if conn.EndPoint = client.RemoteEndPoint && model.AppSettings.SecretCode = msg.SecretCode && msg.AppMark <> model.CurrentAppMark
                     then
-                        P2PNetwork.sendHello conn.Client { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; AppMark = model.CurrentAppMark }
+                        P2PNetwork.sendHello conn.Client { MachineName = model.CurrentMachineName; SecretCode = model.AppSettings.SecretCode; AppMark = model.CurrentAppMark }
                         let connectedApp = { Name = msg.AppMark }
                         { conn with MachineName = msg.MachineName; Apps = connectedApp :: conn.Apps }
                     else conn
