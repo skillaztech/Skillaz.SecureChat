@@ -26,11 +26,15 @@ module Chat =
         IsMe: bool
     }
     
+    type ConnectedApp = {
+        Name: string
+    }
+    
     type ConnectedEndpoint = {
         MachineName: string
+        Apps: ConnectedApp list
         EndPoint: EndPoint
         Client: Socket
-        Accessible: bool
     }
     
     type Model = {
@@ -150,10 +154,10 @@ module Chat =
                         try
                             let unixSocketClient = UnixSocket.client socket
                             let connectionEndpoint = {
-                                MachineName = socket
+                                MachineName = Environment.MachineName
+                                Apps = []
                                 EndPoint = unixSocketClient.RemoteEndPoint
                                 Client = unixSocketClient
-                                Accessible = false
                             }
                             Some connectionEndpoint
                         with
@@ -172,9 +176,9 @@ module Chat =
                             let socket = Tcp.client ip.Address ip.Port model.AppSettings.ClientPort
                             let connectionEndpoint = {
                                 MachineName = ip.ToString()
+                                Apps = []
                                 EndPoint = ip
                                 Client = socket
-                                Accessible = false
                             }
                             Some connectionEndpoint
                         with
@@ -211,9 +215,9 @@ module Chat =
         | ClientConnected socket ->
             let connectedEndpoint = {
                 MachineName = socket.RemoteEndPoint.ToString()
+                Apps = []
                 EndPoint = socket.RemoteEndPoint
                 Client = socket
-                Accessible = false
             }
             
             { model with Connections = connectedEndpoint :: model.Connections }, Cmd.ofSub <| packagesSubscription socket
@@ -225,7 +229,8 @@ module Chat =
                     if conn.EndPoint = client.RemoteEndPoint && model.AppSettings.SecretCode = msg.SecretCode && msg.AppMark <> model.CurrentAppMark
                     then
                         P2PNetwork.sendHello conn.Client { MachineName = model.AppSettings.MachineName; SecretCode = model.AppSettings.SecretCode; AppMark = model.CurrentAppMark }
-                        { conn with MachineName = msg.MachineName; Accessible = true }
+                        let connectedApp = { Name = msg.AppMark }
+                        { conn with MachineName = msg.MachineName; Apps = connectedApp :: conn.Apps }
                     else conn
                 )
             
@@ -301,10 +306,15 @@ module Chat =
                                     StackPanel.spacing 10
                                     StackPanel.orientation Orientation.Vertical
                                     StackPanel.children (
-                                        let onlineIndicator =
+                                        let onlineMachineIndicator =
                                             Path.create [
                                                 Shapes.Path.classes [ "online-indicator" ]
                                                 Shapes.Path.data "M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                                            ]
+                                        let onlineAppIndicator =
+                                            Path.create [
+                                                Shapes.Path.classes [ "online-indicator" ]
+                                                Shapes.Path.data "M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,6A2,2 0 0,0 10,8A2,2 0 0,0 12,10A2,2 0 0,0 14,8A2,2 0 0,0 12,6M12,13C14.67,13 20,14.33 20,17V20H4V17C4,14.33 9.33,13 12,13M12,14.9C9.03,14.9 5.9,16.36 5.9,17V18.1H18.1V17C18.1,16.36 14.97,14.9 12,14.9Z"
                                             ]
                                         [
                                             TextBlock.create [
@@ -316,32 +326,68 @@ module Chat =
                                                 StackPanel.orientation Orientation.Horizontal
                                                 StackPanel.verticalAlignment VerticalAlignment.Center
                                                 StackPanel.children [
-                                                    onlineIndicator
+                                                    onlineMachineIndicator
                                                     TextBlock.create [
                                                         TextBlock.classes [ "connection"; "local" ]
                                                         TextBlock.text model.CurrentMachineName
                                                     ]
                                                 ]
                                             ]
+                                            StackPanel.create [
+                                                StackPanel.spacing 5
+                                                StackPanel.orientation Orientation.Horizontal
+                                                StackPanel.verticalAlignment VerticalAlignment.Center                                                            
+                                                StackPanel.children [
+                                                    onlineAppIndicator
+                                                    TextBlock.create [
+                                                        TextBlock.classes [ "connection"; "remote" ]
+                                                        TextBlock.text Environment.UserName
+                                                    ]
+                                                ]
+                                            ]
                                         ]
                                         @ (model.Connections
-                                            |> List.where (fun c -> c.Accessible)
                                             |> List.map (fun connection ->
                                                 StackPanel.create [
                                                     StackPanel.spacing 5
-                                                    StackPanel.orientation Orientation.Horizontal
-                                                    StackPanel.verticalAlignment VerticalAlignment.Center
-                                                    StackPanel.children [
-                                                        onlineIndicator
-                                                        TextBlock.create [
-                                                            TextBlock.classes [ "connection"; "remote" ]
-                                                            let machineName =
-                                                                if String.IsNullOrWhiteSpace(connection.MachineName)
-                                                                then connection.EndPoint.ToString()
-                                                                else connection.MachineName
-                                                            TextBlock.text machineName
+                                                    StackPanel.orientation Orientation.Vertical
+                                                    StackPanel.children (
+                                                        [
+                                                            StackPanel.create [
+                                                                StackPanel.spacing 5
+                                                                StackPanel.orientation Orientation.Horizontal
+                                                                StackPanel.verticalAlignment VerticalAlignment.Center
+                                                                StackPanel.children [
+                                                                    onlineMachineIndicator
+                                                                    TextBlock.create [
+                                                                        TextBlock.classes [ "connection"; "remote" ]
+                                                                        let machineName =
+                                                                            if String.IsNullOrWhiteSpace(connection.MachineName)
+                                                                            then connection.EndPoint.ToString()
+                                                                            else connection.MachineName
+                                                                        TextBlock.text machineName
+                                                                    ]
+                                                                ]
+                                                            ]
                                                         ]
-                                                    ]
+                                                        @
+                                                        (connection.Apps
+                                                            |> List.map (fun app ->
+                                                                StackPanel.create [
+                                                                    StackPanel.spacing 5
+                                                                    StackPanel.orientation Orientation.Horizontal
+                                                                    StackPanel.verticalAlignment VerticalAlignment.Center                                                            
+                                                                    StackPanel.children [
+                                                                        onlineAppIndicator
+                                                                        TextBlock.create [
+                                                                            TextBlock.classes [ "connection"; "remote" ]
+                                                                            TextBlock.text app.Name
+                                                                        ]
+                                                                    ]
+                                                                ]
+                                                            )
+                                                        )
+                                                    )
                                                 ]
                                             )
                                         )
