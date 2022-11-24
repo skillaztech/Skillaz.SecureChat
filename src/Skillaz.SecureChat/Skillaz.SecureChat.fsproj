@@ -15,6 +15,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="ListHelpers.fs" />
         <Compile Include="AppSettings.fs" />
         <Compile Include="Message.fs" />
         <Compile Include="Flyout.fs" />

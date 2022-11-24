@@ -3,15 +3,15 @@
 open System
 
 module Message =
-    type HelloMessage = {
+    type AliveMessage = {
         MachineName: string
         SecretCode: int
         AppMark: string
     }
     type ChatMessage = {
-        Sender: string
         MessageText: string
         DateTime: DateTime
+        SecretCode: int
         AppMark: string
     }
 

@@ -12,7 +12,7 @@ module P2PNetwork =
     type SscPackage =
         | Ping
         | Message of byte[]
-        | Hello of byte[]
+        | Alive of byte[]
     
     let connectSocket (socket:Socket) (endpoint:EndPoint) =
         let connectTask = socket.ConnectAsync(endpoint)
@@ -57,7 +57,7 @@ module P2PNetwork =
                     
                     match pt with
                     | 202 ->
-                        invoke (SscPackage.Hello packagePayloadBuffer) read tcpClient
+                        invoke (SscPackage.Alive packagePayloadBuffer) read tcpClient
                     | 201 ->
                         invoke (SscPackage.Message packagePayloadBuffer) read tcpClient
                     | _ -> ()
@@ -80,7 +80,7 @@ module P2PNetwork =
         let packageType = BitConverter.GetBytes(210)
         socket.Send(packageType) |> ignore
         
-    let sendHello (socket:Socket) payload =
+    let sendAlive (socket:Socket) payload =
         sendJsonPkg socket 202 payload
         
     let sendMessage (socket:Socket) payload =

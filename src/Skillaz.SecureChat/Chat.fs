@@ -24,15 +24,15 @@ module Chat =
         IsMe: bool
     }
     
-    type ConnectedApp = {
-        Name: string
-    }
-    
     type ConnectedEndpoint = {
         MachineName: string
-        Apps: ConnectedApp list
         EndPoint: EndPoint
         Client: Socket
+    }
+    
+    type ConnectedApp = {
+        AppMark: string
+        ConnectedTill: DateTime
     }
     
     type Model = {
@@ -46,25 +46,34 @@ module Chat =
         MessagesList: LocalMessage list
         SecretCodeVisible: bool
         Connections: ConnectedEndpoint list
+        ConnectedApps: ConnectedApp list
     }
         
     type Msg =
         | ConnectToKnownPeers of string
         | KnownPeersConnected of ConnectedEndpoint list
-        | SendHelloToAllConnectedPeers
         | ClientConnected of Socket
-        | HelloMessageReceived of HelloMessage * Socket
+        | SendIAmAliveMessage
+        | AliveMessageReceived of AliveMessage * Socket
         | RemoteChatMessageReceived of ChatMessage * Socket
         | TextChanged of string
         | AppendLocalMessage of LocalMessage
         | SendMessage
-        | HealthCheckConnectedEndpoints
         | ToggleSecretCodeVisibility
+        | ClearDeadConnectedApps
         
-    let healthCheckSubscription dispatch =
+    let iAmAliveSubscription dispatch =
         let rec tick dispatch = async {
-            Msg.HealthCheckConnectedEndpoints |> dispatch
-            do! Task.Delay(1000) |> Async.AwaitTask
+            Msg.SendIAmAliveMessage |> dispatch
+            do! Task.Delay(4000) |> Async.AwaitTask
+            do! tick dispatch
+        }
+        tick dispatch |> Async.Start
+        
+    let clearDeadConnectedAppsSubscription dispatch =
+        let rec tick dispatch = async {
+            Msg.ClearDeadConnectedApps |> dispatch
+            do! Task.Delay(4000) |> Async.AwaitTask
             do! tick dispatch
         }
         tick dispatch |> Async.Start
@@ -79,10 +88,10 @@ module Chat =
         let handleSocketPackage dispatch packageType read socket  =
             match packageType with
             | P2PNetwork.SscPackage.Ping -> ()
-            | P2PNetwork.SscPackage.Hello bytes ->
+            | P2PNetwork.SscPackage.Alive bytes ->
                 let json = Encoding.UTF8.GetString(bytes, 0, read)
-                let msg = JsonSerializer.Deserialize<HelloMessage>(json)
-                Msg.HelloMessageReceived (msg, socket) |> dispatch
+                let msg = JsonSerializer.Deserialize<AliveMessage>(json)
+                Msg.AliveMessageReceived (msg, socket) |> dispatch
             | P2PNetwork.SscPackage.Message bytes ->
                 let json = Encoding.UTF8.GetString(bytes, 0, read)
                 let msg = JsonSerializer.Deserialize<ChatMessage>(json)
@@ -119,6 +128,7 @@ module Chat =
             UnixSocketFilePath = unixSocketFilePath
             CurrentAppMark = appMark
             Connections = []
+            ConnectedApps = []
             MessageInput = ""
             MessagesList = []
             SecretCodeVisible = false;
@@ -131,7 +141,8 @@ module Chat =
             Cmd.ofMsg <| ConnectToKnownPeers unixSocketsFolder
             Cmd.ofSub <| connectionsSubscription model.TcpListener
             Cmd.ofSub <| connectionsSubscription model.UnixSocketListener
-            Cmd.ofSub <| healthCheckSubscription 
+            Cmd.ofSub <| iAmAliveSubscription
+            Cmd.ofSub <| clearDeadConnectedAppsSubscription 
         ]
         
         model, cmd
@@ -150,7 +161,6 @@ module Chat =
                             let unixSocketClient = UnixSocket.client socket
                             let connectionEndpoint = {
                                 MachineName = Environment.MachineName
-                                Apps = []
                                 EndPoint = unixSocketClient.RemoteEndPoint
                                 Client = unixSocketClient
                             }
@@ -171,7 +181,6 @@ module Chat =
                             let socket = Tcp.client ip.Address ip.Port model.AppSettings.ClientPort
                             let connectionEndpoint = {
                                 MachineName = ip.ToString()
-                                Apps = []
                                 EndPoint = ip
                                 Client = socket
                             }
@@ -196,19 +205,17 @@ module Chat =
                 |> List.map (fun c ->
                     Cmd.ofSub <| packagesSubscription c.Client
                 )
-                |> List.append [ Cmd.ofMsg SendHelloToAllConnectedPeers ]
             
             { model with Connections = accessibleConnections }, Cmd.batch cmds
         | ClientConnected socket ->
             let connectedEndpoint = {
                 MachineName = socket.RemoteEndPoint.ToString()
-                Apps = []
                 EndPoint = socket.RemoteEndPoint
                 Client = socket
             }
             
             { model with Connections = connectedEndpoint :: model.Connections }, Cmd.ofSub <| packagesSubscription socket
-        | SendHelloToAllConnectedPeers ->
+        | SendIAmAliveMessage ->
             model.Connections
             |> Array.ofList
             |> Array.Parallel.iter (fun t ->
@@ -217,35 +224,37 @@ module Chat =
                     AppMark = model.CurrentAppMark
                     SecretCode = model.AppSettings.SecretCode
                 }
-                P2PNetwork.sendHello t.Client msg
+                P2PNetwork.sendAlive t.Client msg
             )
             model, Cmd.none
-        | HelloMessageReceived (msg, client) ->
-            let connections =
-                model.Connections
-                |> List.map (fun conn ->
-                    
-                    if conn.EndPoint = client.RemoteEndPoint && model.AppSettings.SecretCode = msg.SecretCode && msg.AppMark <> model.CurrentAppMark
-                    then
-                        P2PNetwork.sendHello conn.Client { MachineName = model.CurrentMachineName; SecretCode = model.AppSettings.SecretCode; AppMark = model.CurrentAppMark }
-                        let connectedApp = { Name = msg.AppMark }
-                        { conn with MachineName = msg.MachineName; Apps = connectedApp :: conn.Apps }
-                    else conn
-                )
+        | AliveMessageReceived (msg, client) ->
+            let apps =
+                match model.AppSettings.SecretCode = msg.SecretCode && msg.AppMark <> model.CurrentAppMark with
+                | true ->
+                    model.ConnectedApps
+                    |> List.upsert
+                           (fun o -> model.AppSettings.SecretCode = msg.SecretCode && msg.AppMark <> model.CurrentAppMark)
+                           { AppMark = msg.AppMark; ConnectedTill = DateTime.Now.AddSeconds(10) }
+                | false -> model.ConnectedApps
             
-            { model with Connections = connections }, Cmd.none
+            { model with ConnectedApps = apps }, Cmd.none
         | RemoteChatMessageReceived (m, client) ->
-            let isMe = m.AppMark = model.CurrentAppMark
-            match isMe with
-            | true -> model, Cmd.none
-            | false -> model, Cmd.ofMsg <| AppendLocalMessage { Message = m; IsMe = isMe }
+            match m.SecretCode = model.AppSettings.SecretCode with
+            | true ->
+                // TODO: Deduplication by msg hash
+                let isMe = m.AppMark = model.CurrentAppMark
+                match isMe with
+                | true -> model, Cmd.none
+                | false -> model, Cmd.ofMsg <| AppendLocalMessage { Message = m; IsMe = isMe }
+            | false ->
+                model, Cmd.none
         | SendMessage ->
             if not <| String.IsNullOrWhiteSpace(model.MessageInput)
             then
                 let newMsg = {
-                    Sender = model.CurrentMachineName
                     DateTime = DateTime.Now
                     MessageText = model.MessageInput
+                    SecretCode = model.AppSettings.SecretCode
                     AppMark = model.CurrentAppMark
                 }
                 model.Connections
@@ -255,27 +264,14 @@ module Chat =
                     with
                     | e -> ()
                 )
-                { model with MessageInput = "";  },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
+                { model with MessageInput = ""; },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
             else
                 model, Cmd.none
-        | HealthCheckConnectedEndpoints ->
-            let successfullyPingedEndpoints, unsuccessfullyPingedEndpoints =
-                model.Connections
-                |> List.partition (fun ce ->
-                    try
-                        P2PNetwork.sendPing ce.Client
-                        true
-                    with
-                    | _ ->
-                        false
-                )
-                
-            unsuccessfullyPingedEndpoints
-            |> List.iter (fun ep ->
-                ep.Client.Dispose()
-            )
-            
-            { model with Connections = successfullyPingedEndpoints; }, Cmd.none
+        | ClearDeadConnectedApps ->
+            let apps =
+                model.ConnectedApps
+                |> List.where (fun o -> o.ConnectedTill < DateTime.Now)
+            { model with ConnectedApps = apps }, Cmd.none
         | AppendLocalMessage m ->
             { model with MessagesList = m :: model.MessagesList }, Cmd.none
         | TextChanged t ->
@@ -305,7 +301,7 @@ module Chat =
                                     StackPanel.spacing 10
                                     StackPanel.orientation Orientation.Vertical
                                     StackPanel.children (
-                                        let onlineMachineIndicator =
+                                        let onlineIndicator =
                                             Path.create [
                                                 Shapes.Path.classes [ "online-indicator" ]
                                                 Shapes.Path.data "M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
@@ -325,68 +321,33 @@ module Chat =
                                                 StackPanel.orientation Orientation.Horizontal
                                                 StackPanel.verticalAlignment VerticalAlignment.Center
                                                 StackPanel.children [
-                                                    onlineMachineIndicator
+                                                    onlineIndicator
                                                     TextBlock.create [
                                                         TextBlock.classes [ "connection"; "local" ]
-                                                        TextBlock.text model.CurrentMachineName
-                                                    ]
-                                                ]
-                                            ]
-                                            StackPanel.create [
-                                                StackPanel.spacing 5
-                                                StackPanel.orientation Orientation.Horizontal
-                                                StackPanel.verticalAlignment VerticalAlignment.Center                                                            
-                                                StackPanel.children [
-                                                    onlineAppIndicator
-                                                    TextBlock.create [
-                                                        TextBlock.classes [ "connection"; "remote" ]
                                                         TextBlock.text Environment.UserName
                                                     ]
                                                 ]
                                             ]
                                         ]
-                                        @ (model.Connections
-                                            |> List.map (fun connection ->
+                                        @ (model.ConnectedApps
+                                            |> List.map (fun app ->
                                                 StackPanel.create [
                                                     StackPanel.spacing 5
                                                     StackPanel.orientation Orientation.Vertical
-                                                    StackPanel.children (
-                                                        [
-                                                            StackPanel.create [
-                                                                StackPanel.spacing 5
-                                                                StackPanel.orientation Orientation.Horizontal
-                                                                StackPanel.verticalAlignment VerticalAlignment.Center
-                                                                StackPanel.children [
-                                                                    onlineMachineIndicator
-                                                                    TextBlock.create [
-                                                                        TextBlock.classes [ "connection"; "remote" ]
-                                                                        let machineName =
-                                                                            if String.IsNullOrWhiteSpace(connection.MachineName)
-                                                                            then connection.EndPoint.ToString()
-                                                                            else connection.MachineName
-                                                                        TextBlock.text machineName
-                                                                    ]
+                                                    StackPanel.children [
+                                                        StackPanel.create [
+                                                            StackPanel.spacing 5
+                                                            StackPanel.orientation Orientation.Horizontal
+                                                            StackPanel.verticalAlignment VerticalAlignment.Center
+                                                            StackPanel.children [
+                                                                onlineIndicator
+                                                                TextBlock.create [
+                                                                    TextBlock.classes [ "connection"; "remote" ]
+                                                                    TextBlock.text app.AppMark
                                                                 ]
                                                             ]
                                                         ]
-                                                        @
-                                                        (connection.Apps
-                                                            |> List.map (fun app ->
-                                                                StackPanel.create [
-                                                                    StackPanel.spacing 5
-                                                                    StackPanel.orientation Orientation.Horizontal
-                                                                    StackPanel.verticalAlignment VerticalAlignment.Center                                                            
-                                                                    StackPanel.children [
-                                                                        onlineAppIndicator
-                                                                        TextBlock.create [
-                                                                            TextBlock.classes [ "connection"; "remote" ]
-                                                                            TextBlock.text app.Name
-                                                                        ]
-                                                                    ]
-                                                                ]
-                                                            )
-                                                        )
-                                                    )
+                                                    ]
                                                 ]
                                             )
                                         )
@@ -473,7 +434,7 @@ module Chat =
                                                             TextBlock.create [
                                                                 let classes = [ "chat-msg-sender" ] @ if m.IsMe then [ "me" ] else [ ]
                                                                 TextBlock.classes classes
-                                                                TextBlock.text $"{m.Message.Sender}        {m.Message.DateTime.ToShortTimeString()}"
+                                                                TextBlock.text $"{m.Message.AppMark}        {m.Message.DateTime.ToShortTimeString()}"
                                                             ]
                                                         ]
                                                     ]
