@@ -65,7 +65,7 @@ module Chat =
     let iAmAliveSubscription dispatch =
         let rec tick dispatch = async {
             Msg.SendIAmAliveMessage |> dispatch
-            do! Task.Delay(4000) |> Async.AwaitTask
+            do! Task.Delay(2000) |> Async.AwaitTask
             do! tick dispatch
         }
         tick dispatch |> Async.Start
@@ -233,7 +233,7 @@ module Chat =
                 | true ->
                     model.ConnectedApps
                     |> List.upsert
-                           (fun o -> model.AppSettings.SecretCode = msg.SecretCode && msg.AppMark <> model.CurrentAppMark)
+                           (fun o -> o.AppMark = msg.AppMark)
                            { AppMark = msg.AppMark; ConnectedTill = DateTime.Now.AddSeconds(10) }
                 | false -> model.ConnectedApps
             
