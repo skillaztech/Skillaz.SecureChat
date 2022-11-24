@@ -65,7 +65,7 @@ module Chat =
     let iAmAliveSubscription dispatch =
         let rec tick dispatch = async {
             Msg.SendIAmAliveMessage |> dispatch
-            do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
+            do! Task.Delay(TimeSpan.FromSeconds(1)) |> Async.AwaitTask
             do! tick dispatch
         }
         tick dispatch |> Async.Start
@@ -73,7 +73,7 @@ module Chat =
     let clearDeadConnectedAppsSubscription dispatch =
         let rec tick dispatch = async {
             Msg.ClearDeadConnectedApps |> dispatch
-            do! Task.Delay(TimeSpan.FromSeconds(4)) |> Async.AwaitTask
+            do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
             do! tick dispatch
         }
         tick dispatch |> Async.Start
@@ -216,17 +216,24 @@ module Chat =
             
             { model with Connections = connectedEndpoint :: model.Connections }, Cmd.ofSub <| packagesSubscription socket
         | SendIAmAliveMessage ->
-            model.Connections
-            |> Array.ofList
-            |> Array.Parallel.iter (fun t ->
-                let msg = {
-                    MachineName = model.CurrentMachineName
-                    AppMark = model.CurrentAppMark
-                    SecretCode = model.AppSettings.SecretCode
-                }
-                P2PNetwork.sendAlive t.Client msg
-            )
-            model, Cmd.none
+            let connections =
+                model.Connections
+                |> Array.ofList
+                |> Array.Parallel.map (fun t ->
+                    try
+                        let msg = {
+                            MachineName = model.CurrentMachineName
+                            AppMark = model.CurrentAppMark
+                            SecretCode = model.AppSettings.SecretCode
+                        }
+                        P2PNetwork.sendAlive t.Client msg
+                        Some t
+                    with
+                    | e -> None
+                )
+                |> List.ofArray
+                |> List.choose id
+            { model with Connections = connections }, Cmd.none
         | AliveMessageReceived (msg, client) ->
             let apps =
                 match model.AppSettings.SecretCode = msg.SecretCode && msg.AppMark <> model.CurrentAppMark with
@@ -234,7 +241,7 @@ module Chat =
                     model.ConnectedApps
                     |> List.upsert
                            (fun o -> o.AppMark = msg.AppMark)
-                           { AppMark = msg.AppMark; ConnectedTill = DateTime.Now.AddSeconds(6) }
+                           { AppMark = msg.AppMark; ConnectedTill = DateTime.Now.AddSeconds(4) }
                 | false -> model.ConnectedApps
             
             { model with ConnectedApps = apps }, Cmd.none
