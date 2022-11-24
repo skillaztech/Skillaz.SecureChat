@@ -65,7 +65,7 @@ module Chat =
     let iAmAliveSubscription dispatch =
         let rec tick dispatch = async {
             Msg.SendIAmAliveMessage |> dispatch
-            do! Task.Delay(2000) |> Async.AwaitTask
+            do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
             do! tick dispatch
         }
         tick dispatch |> Async.Start
@@ -73,7 +73,7 @@ module Chat =
     let clearDeadConnectedAppsSubscription dispatch =
         let rec tick dispatch = async {
             Msg.ClearDeadConnectedApps |> dispatch
-            do! Task.Delay(4000) |> Async.AwaitTask
+            do! Task.Delay(TimeSpan.FromSeconds(4)) |> Async.AwaitTask
             do! tick dispatch
         }
         tick dispatch |> Async.Start
@@ -234,7 +234,7 @@ module Chat =
                     model.ConnectedApps
                     |> List.upsert
                            (fun o -> o.AppMark = msg.AppMark)
-                           { AppMark = msg.AppMark; ConnectedTill = DateTime.Now.AddSeconds(10) }
+                           { AppMark = msg.AppMark; ConnectedTill = DateTime.Now.AddSeconds(6) }
                 | false -> model.ConnectedApps
             
             { model with ConnectedApps = apps }, Cmd.none
@@ -270,7 +270,7 @@ module Chat =
         | ClearDeadConnectedApps ->
             let apps =
                 model.ConnectedApps
-                |> List.where (fun o -> o.ConnectedTill < DateTime.Now)
+                |> List.where (fun o -> o.ConnectedTill > DateTime.Now)
             { model with ConnectedApps = apps }, Cmd.none
         | AppendLocalMessage m ->
             { model with MessagesList = m :: model.MessagesList }, Cmd.none
