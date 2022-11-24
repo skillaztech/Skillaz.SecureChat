@@ -245,16 +245,6 @@ module Chat =
                 | false -> model.ConnectedApps
             
             { model with ConnectedApps = apps }, Cmd.none
-        | RemoteChatMessageReceived (m, client) ->
-            match m.SecretCode = model.AppSettings.SecretCode with
-            | true ->
-                // TODO: Deduplication by msg hash
-                let isMe = m.AppMark = model.CurrentAppMark
-                match isMe with
-                | true -> model, Cmd.none
-                | false -> model, Cmd.ofMsg <| AppendLocalMessage { Message = m; IsMe = isMe }
-            | false ->
-                model, Cmd.none
         | SendMessage ->
             if not <| String.IsNullOrWhiteSpace(model.MessageInput)
             then
@@ -273,6 +263,16 @@ module Chat =
                 )
                 { model with MessageInput = ""; },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
             else
+                model, Cmd.none
+        | RemoteChatMessageReceived (m, client) ->
+            match m.SecretCode = model.AppSettings.SecretCode with
+            | true ->
+                // TODO: Deduplication by msg hash
+                let isMe = m.AppMark = model.CurrentAppMark
+                match isMe with
+                | true -> model, Cmd.none
+                | false -> model, Cmd.ofMsg <| AppendLocalMessage { Message = m; IsMe = isMe }
+            | false ->
                 model, Cmd.none
         | ClearDeadConnectedApps ->
             let apps =
