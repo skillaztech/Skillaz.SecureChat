@@ -1,5 +1,6 @@
 ﻿namespace Skillaz.SecureChat
 
+open FSharp.Core.LanguagePrimitives
 open System
 open System.IO
 open Avalonia.FuncUI.DSL
@@ -18,6 +19,10 @@ open Skillaz.SecureChat.Message
 open AppSettings
 
 module Chat =
+    
+    type PackageType =
+        | Alive = 201
+        | Message = 202
     
     type LocalMessage = {
         Message: ChatMessage
@@ -85,15 +90,14 @@ module Chat =
         
     let packagesSubscription client dispatch =
         
-        let handleSocketPackage dispatch packageType read socket  =
-            match packageType with
-            | P2PNetwork.SscPackage.Ping -> ()
-            | P2PNetwork.SscPackage.Alive bytes ->
-                let json = Encoding.UTF8.GetString(bytes, 0, read)
+        let handleSocketPackage dispatch packageType bytes read socket  =
+            let json = Encoding.UTF8.GetString(bytes, 0, read)
+            let pt = EnumOfValue(packageType)
+            match pt with
+            | PackageType.Alive ->
                 let msg = JsonSerializer.Deserialize<AliveMessage>(json)
                 Msg.AliveMessageReceived (msg, socket) |> dispatch
-            | P2PNetwork.SscPackage.Message bytes ->
-                let json = Encoding.UTF8.GetString(bytes, 0, read)
+            | PackageType.Message ->
                 let msg = JsonSerializer.Deserialize<ChatMessage>(json)
                 Msg.RemoteChatMessageReceived (msg, socket) |> dispatch
         let handleSocket = handleSocketPackage dispatch
@@ -226,7 +230,7 @@ module Chat =
                             AppMark = model.CurrentAppMark
                             SecretCode = model.AppSettings.SecretCode
                         }
-                        P2PNetwork.sendAlive t.Client msg
+                        P2PNetwork.send (EnumToValue(PackageType.Alive)) t.Client msg
                         Some t
                     with
                     | e -> None
@@ -257,7 +261,7 @@ module Chat =
                 model.Connections
                 |> List.iter (fun ce ->
                     try
-                        P2PNetwork.sendMessage ce.Client newMsg
+                        P2PNetwork.send (EnumToValue(PackageType.Message)) ce.Client newMsg
                     with
                     | e -> ()
                 )

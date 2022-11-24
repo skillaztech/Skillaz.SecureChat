@@ -9,11 +9,6 @@ open System.Threading.Tasks
 
 module P2PNetwork =
     
-    type SscPackage =
-        | Ping
-        | Message of byte[]
-        | Alive of byte[]
-    
     let connectSocket (socket:Socket) (endpoint:EndPoint) =
         let connectTask = socket.ConnectAsync(endpoint)
         let cancelConnectByTimeoutTask = Task.Delay 500
@@ -39,28 +34,19 @@ module P2PNetwork =
                 
                 let length = sizeof<int>
                 let packageTypeBuffer = Array.zeroCreate length
-                let! read = networkStream.ReadAsync(packageTypeBuffer, 0, length) |> Async.AwaitTask
+                let! _ = networkStream.ReadAsync(packageTypeBuffer, 0, length) |> Async.AwaitTask
                 
                 let packageType = BitConverter.ToInt32 packageTypeBuffer
                 
-                match packageType with
-                | 210 ->
-                    invoke SscPackage.Ping read tcpClient
-                | pt ->
-                    let length = sizeof<int>
-                    let packageLengthBuffer = Array.zeroCreate length
-                    let! _ = networkStream.ReadAsync(packageLengthBuffer, 0, length) |> Async.AwaitTask
-                    
-                    let length = BitConverter.ToInt32 packageLengthBuffer
-                    let packagePayloadBuffer = Array.zeroCreate length
-                    let! read = networkStream.ReadAsync(packagePayloadBuffer, 0, length) |> Async.AwaitTask
-                    
-                    match pt with
-                    | 202 ->
-                        invoke (SscPackage.Alive packagePayloadBuffer) read tcpClient
-                    | 201 ->
-                        invoke (SscPackage.Message packagePayloadBuffer) read tcpClient
-                    | _ -> ()
+                let length = sizeof<int>
+                let packageLengthBuffer = Array.zeroCreate length
+                let! _ = networkStream.ReadAsync(packageLengthBuffer, 0, length) |> Async.AwaitTask
+                
+                let length = BitConverter.ToInt32 packageLengthBuffer
+                let packagePayloadBuffer = Array.zeroCreate length
+                let! read = networkStream.ReadAsync(packagePayloadBuffer, 0, length) |> Async.AwaitTask
+                
+                invoke packageType packagePayloadBuffer read tcpClient
                 
                 networkStream.Flush()
             with
@@ -76,12 +62,5 @@ module P2PNetwork =
         let bytes = packageType @ length @ msg |> Array.ofList
         socket.Send(bytes) |> ignore
         
-    let sendPing (socket:Socket) =
-        let packageType = BitConverter.GetBytes(210)
-        socket.Send(packageType) |> ignore
-        
-    let sendAlive (socket:Socket) payload =
-        sendJsonPkg socket 202 payload
-        
-    let sendMessage (socket:Socket) payload =
-        sendJsonPkg socket 201 payload
+    let send packageType (socket:Socket) payload =
+        sendJsonPkg socket packageType payload
