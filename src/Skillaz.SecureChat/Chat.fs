@@ -42,11 +42,11 @@ module Chat =
     
     type Model = {
         AppSettings: AppSettingsJson.Root
-        CurrentMachineName: string
+        CurrentUserName: string
+        CurrentAppMark: string
         TcpListener: Socket
         UnixSocketFilePath: string
         UnixSocketListener: Socket
-        CurrentAppMark: string
         MessageInput: string
         MessagesList: LocalMessage list
         SecretCodeVisible: bool
@@ -126,11 +126,11 @@ module Chat =
         
         let model = {
             AppSettings = appSettings
-            CurrentMachineName = Environment.MachineName
+            CurrentUserName = Environment.UserName
+            CurrentAppMark = appMark
             TcpListener = Tcp.listener IPAddress.Any appSettings.ListenerPort
             UnixSocketListener = UnixSocket.listener unixSocketFilePath
             UnixSocketFilePath = unixSocketFilePath
-            CurrentAppMark = appMark
             Connections = []
             ConnectedApps = []
             MessageInput = ""
@@ -226,7 +226,7 @@ module Chat =
                 |> Array.Parallel.map (fun t ->
                     try
                         let msg = {
-                            MachineName = model.CurrentMachineName
+                            MessageSender = model.CurrentUserName
                             AppMark = model.CurrentAppMark
                             SecretCode = model.AppSettings.SecretCode
                         }
@@ -255,6 +255,7 @@ module Chat =
                 let newMsg = {
                     DateTime = DateTime.Now
                     MessageText = model.MessageInput
+                    MessageSender = model.CurrentUserName
                     SecretCode = model.AppSettings.SecretCode
                     AppMark = model.CurrentAppMark
                 }
@@ -445,7 +446,7 @@ module Chat =
                                                             TextBlock.create [
                                                                 let classes = [ "chat-msg-sender" ] @ if m.IsMe then [ "me" ] else [ ]
                                                                 TextBlock.classes classes
-                                                                TextBlock.text $"{m.Message.AppMark}        {m.Message.DateTime.ToShortTimeString()}"
+                                                                TextBlock.text $"{m.Message.MessageSender}        {m.Message.DateTime.ToShortDateString()} {m.Message.DateTime.ToShortTimeString()}"
                                                             ]
                                                         ]
                                                     ]

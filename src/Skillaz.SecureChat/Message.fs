@@ -4,12 +4,13 @@ open System
 
 module Message =
     type AliveMessage = {
-        MachineName: string
+        MessageSender: string
         SecretCode: int
         AppMark: string
     }
     type ChatMessage = {
         MessageText: string
+        MessageSender: string
         DateTime: DateTime
         SecretCode: int
         AppMark: string
