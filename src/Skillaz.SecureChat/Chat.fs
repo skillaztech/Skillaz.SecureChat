@@ -36,6 +36,7 @@ module Chat =
     }
     
     type ConnectedApp = {
+        AppName: string
         AppMark: string
         ConnectedTill: DateTime
     }
@@ -252,7 +253,7 @@ module Chat =
                         model.ConnectedApps
                         |> List.upsert
                                (fun o -> o.AppMark = msg.AppMark)
-                               { AppMark = msg.AppMark; ConnectedTill = DateTime.Now.AddSeconds(4) }
+                               { AppName = msg.MessageSender; AppMark = msg.AppMark; ConnectedTill = DateTime.Now.AddSeconds(4) }
                     | false -> model.ConnectedApps
             
                 { model with ConnectedApps = apps }, Cmd.ofMsg <| RetranslateAlivePackage msg
@@ -382,7 +383,7 @@ module Chat =
                                                                 onlineIndicator
                                                                 TextBlock.create [
                                                                     TextBlock.classes [ "connection"; "remote" ]
-                                                                    TextBlock.text app.AppMark
+                                                                    TextBlock.text app.AppName
                                                                 ]
                                                             ]
                                                         ]
