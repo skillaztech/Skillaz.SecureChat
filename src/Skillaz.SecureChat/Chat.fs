@@ -296,10 +296,11 @@ module Chat =
             | false ->
                 match msg.SecretCode = model.AppSettings.SecretCode with
                 | true ->
-                    let isMe = msg.AppMark = model.CurrentAppMark
-                    match isMe with
-                    | true -> model, Cmd.ofMsg <| RetranslateChatMessage msg
-                    | false -> model, Cmd.ofMsg <| AppendLocalMessage { Message = msg; IsMe = isMe }
+                    let cmds = [
+                        Cmd.ofMsg <| AppendLocalMessage { Message = msg; IsMe = false }
+                        Cmd.ofMsg <| RetranslateChatMessage msg
+                    ]
+                    model, Cmd.batch cmds
                 | false ->
                     model, Cmd.ofMsg <| RetranslateChatMessage msg
             | true ->
