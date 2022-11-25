@@ -59,8 +59,10 @@ module Chat =
         | KnownPeersConnected of ConnectedEndpoint list
         | ClientConnected of Socket
         | SendIAmAliveMessage
-        | AliveMessageReceived of AliveMessage * Socket
+        | AlivePackageReceived of AliveMessage * Socket
+        | RetranslateAlivePackage of AliveMessage
         | RemoteChatMessageReceived of ChatMessage * Socket
+        | RetranslateChatMessage of ChatMessage
         | TextChanged of string
         | AppendLocalMessage of LocalMessage
         | SendMessage
@@ -96,7 +98,7 @@ module Chat =
             match pt with
             | PackageType.Alive ->
                 let msg = JsonSerializer.Deserialize<AliveMessage>(json)
-                Msg.AliveMessageReceived (msg, socket) |> dispatch
+                Msg.AlivePackageReceived (msg, socket) |> dispatch
             | PackageType.Message ->
                 let msg = JsonSerializer.Deserialize<ChatMessage>(json)
                 Msg.RemoteChatMessageReceived (msg, socket) |> dispatch
@@ -229,6 +231,9 @@ module Chat =
                             MessageSender = model.CurrentUserName
                             AppMark = model.CurrentAppMark
                             SecretCode = model.AppSettings.SecretCode
+                            RetranslationInfo = {
+                                RetranslatedBy = [ model.CurrentAppMark ]
+                            }
                         }
                         P2PNetwork.send (EnumToValue(PackageType.Alive)) t.Client msg
                         Some t
@@ -238,17 +243,27 @@ module Chat =
                 |> List.ofArray
                 |> List.choose id
             { model with Connections = connections }, Cmd.none
-        | AliveMessageReceived (msg, client) ->
-            let apps =
-                match model.AppSettings.SecretCode = msg.SecretCode && msg.AppMark <> model.CurrentAppMark with
-                | true ->
-                    model.ConnectedApps
-                    |> List.upsert
-                           (fun o -> o.AppMark = msg.AppMark)
-                           { AppMark = msg.AppMark; ConnectedTill = DateTime.Now.AddSeconds(4) }
-                | false -> model.ConnectedApps
+        | AlivePackageReceived (msg, client) ->
+            match msg.RetranslationInfo.RetranslatedBy |> List.contains model.CurrentAppMark with
+            | false ->
+                let apps =
+                    match model.AppSettings.SecretCode = msg.SecretCode && msg.AppMark <> model.CurrentAppMark with
+                    | true ->
+                        model.ConnectedApps
+                        |> List.upsert
+                               (fun o -> o.AppMark = msg.AppMark)
+                               { AppMark = msg.AppMark; ConnectedTill = DateTime.Now.AddSeconds(4) }
+                    | false -> model.ConnectedApps
             
-            { model with ConnectedApps = apps }, Cmd.none
+                { model with ConnectedApps = apps }, Cmd.ofMsg <| RetranslateAlivePackage msg
+            | true ->
+                model, Cmd.none
+        | RetranslateAlivePackage msg ->
+            let msg = { msg with RetranslationInfo = { msg.RetranslationInfo with RetranslatedBy = model.CurrentAppMark :: msg.RetranslationInfo.RetranslatedBy } }
+            model.Connections
+            |> List.iter (fun conn ->
+                P2PNetwork.send (EnumToValue(PackageType.Alive)) conn.Client msg)
+            model, Cmd.none
         | SendMessage ->
             if not <| String.IsNullOrWhiteSpace(model.MessageInput)
             then
@@ -258,6 +273,9 @@ module Chat =
                     MessageSender = model.CurrentUserName
                     SecretCode = model.AppSettings.SecretCode
                     AppMark = model.CurrentAppMark
+                    RetranslationInfo = {
+                        RetranslatedBy = [ model.CurrentAppMark ]
+                    }
                 }
                 model.Connections
                 |> List.iter (fun ce ->
@@ -269,16 +287,25 @@ module Chat =
                 { model with MessageInput = ""; },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
             else
                 model, Cmd.none
-        | RemoteChatMessageReceived (m, client) ->
-            match m.SecretCode = model.AppSettings.SecretCode with
-            | true ->
-                // TODO: Deduplication by msg hash
-                let isMe = m.AppMark = model.CurrentAppMark
-                match isMe with
-                | true -> model, Cmd.none
-                | false -> model, Cmd.ofMsg <| AppendLocalMessage { Message = m; IsMe = isMe }
+        | RemoteChatMessageReceived (msg, client) ->
+            match msg.RetranslationInfo.RetranslatedBy |> List.contains model.CurrentAppMark with
             | false ->
+                match msg.SecretCode = model.AppSettings.SecretCode with
+                | true ->
+                    let isMe = msg.AppMark = model.CurrentAppMark
+                    match isMe with
+                    | true -> model, Cmd.ofMsg <| RetranslateChatMessage msg
+                    | false -> model, Cmd.ofMsg <| AppendLocalMessage { Message = msg; IsMe = isMe }
+                | false ->
+                    model, Cmd.ofMsg <| RetranslateChatMessage msg
+            | true ->
                 model, Cmd.none
+        | RetranslateChatMessage msg ->
+            let msg = { msg with RetranslationInfo = { msg.RetranslationInfo with RetranslatedBy = model.CurrentAppMark :: msg.RetranslationInfo.RetranslatedBy } }
+            model.Connections
+            |> List.iter (fun conn ->
+                P2PNetwork.send (EnumToValue(PackageType.Message)) conn.Client msg)
+            model, Cmd.none
         | ClearDeadConnectedApps ->
             let apps =
                 model.ConnectedApps
