@@ -94,15 +94,18 @@ module Chat =
     let packagesSubscription client dispatch =
         
         let handleSocketPackage dispatch packageType bytes read socket  =
-            let json = Encoding.UTF8.GetString(bytes, 0, read)
-            let pt = EnumOfValue(packageType)
-            match pt with
-            | PackageType.Alive ->
-                let msg = JsonSerializer.Deserialize<AliveMessage>(json)
-                Msg.AlivePackageReceived (msg, socket) |> dispatch
-            | PackageType.Message ->
-                let msg = JsonSerializer.Deserialize<ChatMessage>(json)
-                Msg.RemoteChatMessageReceived (msg, socket) |> dispatch
+            try
+                let json = Encoding.UTF8.GetString(bytes, 0, read)
+                let pt = EnumOfValue(packageType)
+                match pt with
+                | PackageType.Alive ->
+                    let msg = JsonSerializer.Deserialize<AliveMessage>(json)
+                    Msg.AlivePackageReceived (msg, socket) |> dispatch
+                | PackageType.Message ->
+                    let msg = JsonSerializer.Deserialize<ChatMessage>(json)
+                    Msg.RemoteChatMessageReceived (msg, socket) |> dispatch
+            with
+            | e -> ()
         let handleSocket = handleSocketPackage dispatch
         
         P2PNetwork.listenSocketPackages client handleSocket |> Async.Start
@@ -345,11 +348,6 @@ module Chat =
                                             Path.create [
                                                 Shapes.Path.classes [ "online-indicator" ]
                                                 Shapes.Path.data "M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
-                                            ]
-                                        let onlineAppIndicator =
-                                            Path.create [
-                                                Shapes.Path.classes [ "online-indicator" ]
-                                                Shapes.Path.data "M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,6A2,2 0 0,0 10,8A2,2 0 0,0 12,10A2,2 0 0,0 14,8A2,2 0 0,0 12,6M12,13C14.67,13 20,14.33 20,17V20H4V17C4,14.33 9.33,13 12,13M12,14.9C9.03,14.9 5.9,16.36 5.9,17V18.1H18.1V17C18.1,16.36 14.97,14.9 12,14.9Z"
                                             ]
                                         [
                                             TextBlock.create [
