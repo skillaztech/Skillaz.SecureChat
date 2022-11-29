@@ -87,8 +87,6 @@ module Chat =
         let rec tick dispatch = async {
             Msg.ClearDeadConnectedApps |> dispatch
             Msg.TryStartListenRemoteConnections |> dispatch
-            Msg.TryConnectToLocalPeers |> dispatch
-            Msg.TryConnectToRemotePeers |> dispatch
             
             do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
             do! tick dispatch
@@ -101,23 +99,28 @@ module Chat =
         P2PNetwork.listenSocket listener handle |> Async.Start
         
     let packagesSubscription client dispatch =
-        
         let handleSocketPackage dispatch packageType bytes read socket  =
-            try
-                let json = Encoding.UTF8.GetString(bytes, 0, read)
-                let pt = EnumOfValue(packageType)
-                match pt with
-                | PackageType.Alive ->
-                    let msg = JsonSerializer.Deserialize<AliveMessage>(json)
-                    Msg.AlivePackageReceived (msg, socket) |> dispatch
-                | PackageType.Message ->
-                    let msg = JsonSerializer.Deserialize<ChatMessage>(json)
-                    Msg.RemoteChatMessageReceived (msg, socket) |> dispatch
-            with
-            | e -> ()
+            let json = Encoding.UTF8.GetString(bytes, 0, read)
+            let pt = EnumOfValue(packageType)
+            match pt with
+            | PackageType.Alive ->
+                let msg = JsonSerializer.Deserialize<AliveMessage>(json)
+                Msg.AlivePackageReceived (msg, socket) |> dispatch
+            | PackageType.Message ->
+                let msg = JsonSerializer.Deserialize<ChatMessage>(json)
+                Msg.RemoteChatMessageReceived (msg, socket) |> dispatch
+            
         let handleSocket = handleSocketPackage dispatch
         
-        P2PNetwork.listenSocketPackages client handleSocket |> Async.Start
+        let rec handlePackage client dispatch = async {
+            try
+                do! P2PNetwork.listenAndHandleSocketPackage client handleSocket
+                do! handlePackage client dispatch
+            with
+            | e -> Logger.warnLogger.Log("handleSocketPackage", $"{e.ToString()}")
+        }
+        
+        handlePackage client dispatch |> Async.Start
     
     let init (appSettings: AppSettingsJson.Root) =
         
@@ -158,6 +161,8 @@ module Chat =
         model.UnixSocketListener.Listen()
         
         let cmd = Cmd.batch [
+            Cmd.ofMsg Msg.TryConnectToLocalPeers
+            Cmd.ofMsg Msg.TryConnectToRemotePeers
             Cmd.ofSub <| connectionsSubscription model.UnixSocketListener
             Cmd.ofSub <| repeatEverySecond
             Cmd.ofSub <| repeatEveryTwoSeconds 
@@ -177,6 +182,7 @@ module Chat =
                     { model with TcpListener = listener }, Cmd.ofSub <| connectionsSubscription model.TcpListener
                 with
                 | e ->
+                    Logger.warnLogger.Log(nameof TryStartListenRemoteConnections, e.ToString())
                     model, Cmd.none
         | TryConnectToLocalPeers ->
             let connectToLocalPeers () = async {
@@ -196,7 +202,9 @@ module Chat =
                             }
                             Some connectionEndpoint
                         with
-                        | e -> None
+                        | e -> 
+                            Logger.warnLogger.Log(nameof TryConnectToLocalPeers, "Socket: {0} Ex: {1}", socket, e.ToString())
+                            None
                     )
                     |> Array.choose id
                     |> List.ofArray
@@ -218,7 +226,9 @@ module Chat =
                             }
                             Some connectionEndpoint
                         with
-                        | e -> None
+                        | e -> 
+                            Logger.warnLogger.Log(nameof TryConnectToRemotePeers, "IP: {0} Ex: {1}", ep.ToString(), e.ToString())
+                            None
                     )
                     |> Array.choose id
                     |> List.ofArray
@@ -258,7 +268,9 @@ module Chat =
                         P2PNetwork.send (EnumToValue(PackageType.Alive)) t.Client msg
                         Some t
                     with
-                    | e -> None
+                    | e ->
+                        Logger.warnLogger.Log(nameof SendIAmAliveMessage, e.ToString())
+                        None
                 )
                 |> List.ofArray
                 |> List.choose id

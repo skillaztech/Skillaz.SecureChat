@@ -27,32 +27,26 @@ module P2PNetwork =
         do! listenSocket socket invoke
     }
     
-    let rec listenSocketPackages (tcpClient:Socket) invoke = async {
-        if tcpClient.Connected then
-            try
-                let networkStream = new NetworkStream(tcpClient)
-                
-                let length = sizeof<int>
-                let packageTypeBuffer = Array.zeroCreate length
-                let! _ = networkStream.ReadAsync(packageTypeBuffer, 0, length) |> Async.AwaitTask
-                
-                let packageType = BitConverter.ToInt32 packageTypeBuffer
-                
-                let length = sizeof<int>
-                let packageLengthBuffer = Array.zeroCreate length
-                let! _ = networkStream.ReadAsync(packageLengthBuffer, 0, length) |> Async.AwaitTask
-                
-                let length = BitConverter.ToInt32 packageLengthBuffer
-                let packagePayloadBuffer = Array.zeroCreate length
-                let! read = networkStream.ReadAsync(packagePayloadBuffer, 0, length) |> Async.AwaitTask
-                
-                invoke packageType packagePayloadBuffer read tcpClient
-                
-                networkStream.Flush()
-            with
-            | _ -> ()
+    let listenAndHandleSocketPackage (tcpClient:Socket) invoke = async {
+        let networkStream = new NetworkStream(tcpClient)
             
-            do! listenSocketPackages tcpClient invoke
+        let length = sizeof<int>
+        let packageTypeBuffer = Array.zeroCreate length
+        let! _ = networkStream.ReadAsync(packageTypeBuffer, 0, length) |> Async.AwaitTask
+        
+        let packageType = BitConverter.ToInt32 packageTypeBuffer
+        
+        let length = sizeof<int>
+        let packageLengthBuffer = Array.zeroCreate length
+        let! _ = networkStream.ReadAsync(packageLengthBuffer, 0, length) |> Async.AwaitTask
+        
+        let length = BitConverter.ToInt32 packageLengthBuffer
+        let packagePayloadBuffer = Array.zeroCreate length
+        let! read = networkStream.ReadAsync(packagePayloadBuffer, 0, length) |> Async.AwaitTask
+        
+        invoke packageType packagePayloadBuffer read tcpClient
+        
+        networkStream.Flush()
     }
     
     let private sendJsonPkg (socket:Socket) (pkgType:int) payload =

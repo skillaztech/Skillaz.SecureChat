@@ -49,6 +49,6 @@ module Program =
         AppBuilder
             .Configure<App>()
             .UsePlatformDetect()
-            // .LogToTrace(LogEventLevel.Warning)
+            .LogToTrace(LogEventLevel.Warning)
             .UseSkia()
             .StartWithClassicDesktopLifetime(args)
