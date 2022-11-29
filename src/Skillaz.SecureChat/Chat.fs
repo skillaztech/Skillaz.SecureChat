@@ -87,6 +87,7 @@ module Chat =
         let rec tick dispatch = async {
             Msg.ClearDeadConnectedApps |> dispatch
             Msg.TryStartListenRemoteConnections |> dispatch
+            Msg.TryConnectToRemotePeers |> dispatch
             
             do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
             do! tick dispatch
@@ -164,7 +165,6 @@ module Chat =
         
         let cmd = Cmd.batch [
             Cmd.ofMsg Msg.TryConnectToLocalPeers
-            Cmd.ofMsg Msg.TryConnectToRemotePeers
             Cmd.ofSub <| connectionsSubscription model.UnixSocketListener
             Cmd.ofSub <| repeatEverySecond
             Cmd.ofSub <| repeatEveryTwoSeconds 
