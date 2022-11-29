@@ -58,12 +58,17 @@ module Chat =
     }
         
     type Msg =
-        | TryStartListenRemoteConnections
-        | TryConnectToRemotePeers
+        | StartLaunchListenRemoteConnectionsLoop
+        | LaunchListenRemoteConnectionsIterationFinished of Socket option
+        | StartConnectToRemotePeersLoop
+        | ConnectToRemotePeersIterationFinished of ConnectedEndpoint list
         | TryConnectToLocalPeers
         | PeersConnected of ConnectedEndpoint list
         | ClientConnected of Socket
-        | SendIAmAliveMessage
+        | StartCleanDeadAppsLoop
+        | DeadAppsCleanIterationFinished of ConnectedApp list
+        | StartSendIAmAliveLoop
+        | IAmAliveSendIterationFinished of ConnectedEndpoint list
         | AlivePackageReceived of AliveMessage * Socket
         | RetranslateAlivePackage of AliveMessage
         | RemoteChatMessageReceived of ChatMessage * Socket
@@ -72,27 +77,7 @@ module Chat =
         | AppendLocalMessage of LocalMessage
         | SendMessage
         | ToggleSecretCodeVisibility
-        | ClearDeadConnectedApps
         | ToggleSettingsVisibility
-        
-    let repeatEverySecond dispatch =
-        let rec tick dispatch = async {
-            Msg.SendIAmAliveMessage |> dispatch
-            do! Task.Delay(TimeSpan.FromSeconds(1)) |> Async.AwaitTask
-            do! tick dispatch
-        }
-        tick dispatch |> Async.Start
-        
-    let repeatEveryTwoSeconds dispatch =
-        let rec tick dispatch = async {
-            Msg.ClearDeadConnectedApps |> dispatch
-            Msg.TryStartListenRemoteConnections |> dispatch
-            Msg.TryConnectToRemotePeers |> dispatch
-            
-            do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
-            do! tick dispatch
-        }
-        tick dispatch |> Async.Start
         
     let connectionsSubscription listener dispatch =
         let handle socket =
@@ -164,30 +149,40 @@ module Chat =
         model.UnixSocketListener.Listen()
         
         let cmd = Cmd.batch [
+            Cmd.ofMsg Msg.StartLaunchListenRemoteConnectionsLoop
+            Cmd.ofMsg Msg.StartCleanDeadAppsLoop
+            Cmd.ofMsg Msg.StartSendIAmAliveLoop
+            Cmd.ofMsg Msg.StartConnectToRemotePeersLoop
             Cmd.ofMsg Msg.TryConnectToLocalPeers
             Cmd.ofSub <| connectionsSubscription model.UnixSocketListener
-            Cmd.ofSub <| repeatEverySecond
-            Cmd.ofSub <| repeatEveryTwoSeconds 
         ]
         
         model, cmd
     
     let update msg model =
         match msg with
-        | TryStartListenRemoteConnections ->
-            if model.TcpListener.IsBound then
-                model, Cmd.none
-            else
-                try
-                    let listener = Tcp.tryBindTo IPAddress.Any model.AppSettings.ListenerPort model.TcpListener
-                    listener.Listen()
-                    { model with TcpListener = listener }, Cmd.ofSub <| connectionsSubscription model.TcpListener
-                with
-                | e ->
-                    Logger.warnLogger.Log(nameof TryStartListenRemoteConnections, e.ToString())
-                    model, Cmd.none
+        | StartLaunchListenRemoteConnectionsLoop ->
+            let tryListenRemoteConnections _ = async {
+                do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
+                if model.TcpListener.IsBound then
+                    return None
+                else
+                    try
+                        let listener = Tcp.tryBindTo IPAddress.Any model.AppSettings.ListenerPort model.TcpListener
+                        listener.Listen()
+                        return Some listener
+                    with
+                    | e ->
+                        Logger.warnLogger.Log(nameof StartLaunchListenRemoteConnectionsLoop, e.ToString())
+                        return None
+            }
+            model, Cmd.OfAsync.perform tryListenRemoteConnections () LaunchListenRemoteConnectionsIterationFinished
+        | LaunchListenRemoteConnectionsIterationFinished tcpListener ->
+            match tcpListener with
+            | Some socket -> { model with TcpListener = socket }, Cmd.ofSub <| connectionsSubscription socket
+            | None -> model, Cmd.ofMsg StartLaunchListenRemoteConnectionsLoop
         | TryConnectToLocalPeers ->
-            let connectToLocalPeers () = async {
+            let connectToLocalPeers _ = async {
                 let existingUnixSockets =
                     Directory.GetFiles(model.UnixSocketFolder)
                     |> Array.where (fun o -> o <> model.UnixSocketFilePath)
@@ -212,8 +207,9 @@ module Chat =
                     |> List.ofArray
             }
             model, Cmd.OfAsync.perform connectToLocalPeers () PeersConnected
-        | TryConnectToRemotePeers ->
-            let connectToRemotePeers () = async {
+        | StartConnectToRemotePeersLoop ->
+            let connectToRemotePeers _ = async {
+                do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
                 return
                     model.AppSettings.KnownPeers
                     |> Array.map IPEndPoint.Parse
@@ -229,15 +225,21 @@ module Chat =
                             Some connectionEndpoint
                         with
                         | e -> 
-                            Logger.warnLogger.Log(nameof TryConnectToRemotePeers, "IP: {0} Ex: {1}", ep.ToString(), e.ToString())
+                            Logger.warnLogger.Log(nameof StartConnectToRemotePeersLoop, "IP: {0} Ex: {1}", ep.ToString(), e.ToString())
                             None
                     )
                     |> Array.choose id
                     |> List.ofArray
             }
             
-            model, Cmd.OfAsync.perform connectToRemotePeers () PeersConnected
-        | PeersConnected newlyConnected ->                
+            model, Cmd.OfAsync.perform connectToRemotePeers () ConnectToRemotePeersIterationFinished
+        | ConnectToRemotePeersIterationFinished peers ->
+            let msgs = Cmd.batch [
+                Cmd.ofMsg <| PeersConnected peers
+                Cmd.ofMsg StartConnectToRemotePeersLoop
+            ]
+            model, msgs
+        | PeersConnected newlyConnected ->
             let cmds =
                 newlyConnected
                 |> List.map (fun c ->
@@ -253,30 +255,37 @@ module Chat =
             }
             
             { model with Connections = connectedEndpoint :: model.Connections }, Cmd.ofSub <| packagesSubscription socket
-        | SendIAmAliveMessage ->
-            let connections =
-                model.Connections
-                |> Array.ofList
-                |> Array.Parallel.map (fun t ->
-                    try
-                        let msg = {
-                            MessageSender = model.CurrentUserName
-                            AppMark = model.CurrentAppMark
-                            SecretCode = model.AppSettings.SecretCode
-                            RetranslationInfo = {
-                                RetranslatedBy = [ model.CurrentAppMark ]
+        | StartSendIAmAliveLoop ->
+            let sendIAmAliveMessageAndGetAvailableConnections _ = async {
+                do! Task.Delay(TimeSpan.FromSeconds(1)) |> Async.AwaitTask
+                
+                return
+                    model.Connections
+                    |> Array.ofList
+                    |> Array.Parallel.map (fun t ->
+                        try
+                            let msg = {
+                                MessageSender = model.CurrentUserName
+                                AppMark = model.CurrentAppMark
+                                SecretCode = model.AppSettings.SecretCode
+                                RetranslationInfo = {
+                                    RetranslatedBy = [ model.CurrentAppMark ]
+                                }
                             }
-                        }
-                        P2PNetwork.send (EnumToValue(PackageType.Alive)) t.Client msg
-                        Some t
-                    with
-                    | e ->
-                        Logger.warnLogger.Log(nameof SendIAmAliveMessage, e.ToString())
-                        None
-                )
-                |> List.ofArray
-                |> List.choose id
-            { model with Connections = connections }, Cmd.none
+                            P2PNetwork.send (EnumToValue(PackageType.Alive)) t.Client msg
+                            Some t
+                        with
+                        | e ->
+                            Logger.warnLogger.Log(nameof StartSendIAmAliveLoop, e.ToString())
+                            None
+                    )
+                    |> List.ofArray
+                    |> List.choose id
+            }
+            
+            model, Cmd.OfAsync.perform sendIAmAliveMessageAndGetAvailableConnections () IAmAliveSendIterationFinished
+        | IAmAliveSendIterationFinished connectedEndpoints ->
+            { model with Connections = connectedEndpoints }, Cmd.ofMsg StartSendIAmAliveLoop
         | AlivePackageReceived (msg, client) ->
             match msg.RetranslationInfo.RetranslatedBy |> List.contains model.CurrentAppMark with
             | false ->
@@ -341,11 +350,18 @@ module Chat =
             |> List.iter (fun conn ->
                 P2PNetwork.send (EnumToValue(PackageType.Message)) conn.Client msg)
             model, Cmd.none
-        | ClearDeadConnectedApps ->
-            let apps =
-                model.ConnectedApps
-                |> List.where (fun o -> o.ConnectedTill > DateTime.Now)
-            { model with ConnectedApps = apps }, Cmd.none
+        | StartCleanDeadAppsLoop ->
+            let clearDeadConnectedApps _ = async {
+                do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
+                
+                return
+                    model.ConnectedApps
+                    |> List.where (fun o -> o.ConnectedTill > DateTime.Now)
+            }
+            
+            model, Cmd.OfAsync.perform clearDeadConnectedApps () DeadAppsCleanIterationFinished
+        | DeadAppsCleanIterationFinished apps ->
+            { model with ConnectedApps = apps }, Cmd.ofMsg StartCleanDeadAppsLoop
         | AppendLocalMessage m ->
             { model with MessagesList = m :: model.MessagesList }, Cmd.none
         | TextChanged t ->
