@@ -237,14 +237,14 @@ module Chat =
             }
             
             model, Cmd.OfAsync.perform connectToRemotePeers () PeersConnected
-        | PeersConnected accessibleConnections ->                
+        | PeersConnected newlyConnected ->                
             let cmds =
-                accessibleConnections
+                newlyConnected
                 |> List.map (fun c ->
                     Cmd.ofSub <| packagesSubscription c.Client
                 )
             
-            { model with Connections = accessibleConnections }, Cmd.batch cmds
+            { model with Connections = model.Connections @ newlyConnected }, Cmd.batch cmds
         | ClientConnected socket ->
             let connectedEndpoint = {
                 UniqueConnectionMark = socket.RemoteEndPoint.ToString()
