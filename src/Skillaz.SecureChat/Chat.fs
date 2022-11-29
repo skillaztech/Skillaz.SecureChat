@@ -391,7 +391,7 @@ module Chat =
                                 [
                                     TextBlock.create [
                                         TextBlock.classes [ "label-connections" ]
-                                        TextBlock.text "В сети:"
+                                        TextBlock.text $"В сети: {model.Connections |> List.map (fun o -> o.UniqueConnectionMark)}"
                                     ]
                                     StackPanel.create [
                                         StackPanel.spacing 5
