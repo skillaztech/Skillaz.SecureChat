@@ -30,7 +30,7 @@ module Chat =
     }
     
     type ConnectedEndpoint = {
-        MachineName: string
+        UniqueConnectionMark: string
         EndPoint: EndPoint
         Client: Socket
     }
@@ -46,6 +46,7 @@ module Chat =
         CurrentUserName: string
         CurrentAppMark: string
         TcpListener: Socket
+        UnixSocketFolder: string
         UnixSocketFilePath: string
         UnixSocketListener: Socket
         MessageInput: string
@@ -58,8 +59,9 @@ module Chat =
         
     type Msg =
         | TryStartListenRemoteConnections
-        | ConnectToKnownPeers of string
-        | KnownPeersConnected of ConnectedEndpoint list
+        | TryConnectToRemotePeers
+        | TryConnectToLocalPeers
+        | PeersConnected of ConnectedEndpoint list
         | ClientConnected of Socket
         | SendIAmAliveMessage
         | AlivePackageReceived of AliveMessage * Socket
@@ -85,6 +87,8 @@ module Chat =
         let rec tick dispatch = async {
             Msg.ClearDeadConnectedApps |> dispatch
             Msg.TryStartListenRemoteConnections |> dispatch
+            Msg.TryConnectToLocalPeers |> dispatch
+            Msg.TryConnectToRemotePeers |> dispatch
             
             do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
             do! tick dispatch
@@ -141,6 +145,7 @@ module Chat =
             CurrentAppMark = appMark
             TcpListener = Tcp.listener
             UnixSocketListener = UnixSocket.listener unixSocketFilePath
+            UnixSocketFolder = unixSocketsFolder
             UnixSocketFilePath = unixSocketFilePath
             Connections = []
             ConnectedApps = []
@@ -153,7 +158,6 @@ module Chat =
         model.UnixSocketListener.Listen()
         
         let cmd = Cmd.batch [
-            Cmd.ofMsg <| ConnectToKnownPeers unixSocketsFolder
             Cmd.ofSub <| connectionsSubscription model.UnixSocketListener
             Cmd.ofSub <| repeatEverySecond
             Cmd.ofSub <| repeatEveryTwoSeconds 
@@ -174,18 +178,19 @@ module Chat =
                 with
                 | e ->
                     model, Cmd.none
-        | ConnectToKnownPeers unixSocketFilePath ->
-            let accessibleLocalConnections () = async {
+        | TryConnectToLocalPeers ->
+            let connectToLocalPeers () = async {
                 let existingUnixSockets =
-                    Directory.GetFiles(unixSocketFilePath)
+                    Directory.GetFiles(model.UnixSocketFolder)
                     |> Array.where (fun o -> o <> model.UnixSocketFilePath)
                 return
                     existingUnixSockets
+                    |> Array.where (fun socket -> model.Connections |> List.exists (fun x -> x.UniqueConnectionMark = socket) |> not)
                     |> Array.Parallel.map (fun socket ->
                         try
                             let unixSocketClient = UnixSocket.client socket
                             let connectionEndpoint = {
-                                MachineName = Environment.MachineName
+                                UniqueConnectionMark = socket
                                 EndPoint = unixSocketClient.RemoteEndPoint
                                 Client = unixSocketClient
                             }
@@ -196,17 +201,19 @@ module Chat =
                     |> Array.choose id
                     |> List.ofArray
             }
-            
-            let accessibleRemoteConnections () = async {
+            model, Cmd.OfAsync.perform connectToLocalPeers () PeersConnected
+        | TryConnectToRemotePeers ->
+            let connectToRemotePeers () = async {
                 return
                     model.AppSettings.KnownPeers
                     |> Array.map IPEndPoint.Parse
-                    |> Array.Parallel.map (fun ip ->
+                    |> Array.where (fun ep -> model.Connections |> List.exists (fun x -> x.UniqueConnectionMark = ep.ToString()) |> not)
+                    |> Array.Parallel.map (fun ep ->
                         try
-                            let socket = Tcp.client ip.Address ip.Port model.AppSettings.ClientPort
+                            let socket = Tcp.client ep.Address ep.Port model.AppSettings.ClientPort
                             let connectionEndpoint = {
-                                MachineName = ip.ToString()
-                                EndPoint = ip
+                                UniqueConnectionMark = ep.ToString()
+                                EndPoint = ep
                                 Client = socket
                             }
                             Some connectionEndpoint
@@ -217,14 +224,8 @@ module Chat =
                     |> List.ofArray
             }
             
-            let connections () = async {
-                let! local = accessibleLocalConnections()
-                let! remote = accessibleRemoteConnections()
-                return local @ remote
-            }
-            
-            model, Cmd.OfAsync.perform connections () KnownPeersConnected
-        | KnownPeersConnected accessibleConnections ->                
+            model, Cmd.OfAsync.perform connectToRemotePeers () PeersConnected
+        | PeersConnected accessibleConnections ->                
             let cmds =
                 accessibleConnections
                 |> List.map (fun c ->
@@ -234,7 +235,7 @@ module Chat =
             { model with Connections = accessibleConnections }, Cmd.batch cmds
         | ClientConnected socket ->
             let connectedEndpoint = {
-                MachineName = socket.RemoteEndPoint.ToString()
+                UniqueConnectionMark = socket.RemoteEndPoint.ToString()
                 EndPoint = socket.RemoteEndPoint
                 Client = socket
             }
