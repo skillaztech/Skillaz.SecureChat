@@ -13,7 +13,6 @@ module Tcp =
     let tryBindTo (ip:IPAddress) port (tcp:Socket) =
         let ep = IPEndPoint(ip, port)
         tcp.Bind(ep)
-        tcp
     
     let client (ip:IPAddress) port localPort =
         let socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)

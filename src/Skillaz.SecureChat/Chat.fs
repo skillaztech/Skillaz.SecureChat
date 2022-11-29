@@ -59,7 +59,7 @@ module Chat =
         
     type Msg =
         | StartLaunchListenRemoteConnectionsLoop
-        | LaunchListenRemoteConnectionsIterationFinished of Socket option
+        | LaunchListenRemoteConnectionsIterationFinished of Result<unit, unit>
         | StartConnectToRemotePeersLoop
         | ConnectToRemotePeersIterationFinished of ConnectedEndpoint list
         | TryConnectToLocalPeers
@@ -164,23 +164,20 @@ module Chat =
         | StartLaunchListenRemoteConnectionsLoop ->
             let tryListenRemoteConnections _ = async {
                 do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
-                if model.TcpListener.IsBound then
-                    return None
-                else
-                    try
-                        let listener = Tcp.tryBindTo IPAddress.Any model.AppSettings.ListenerPort model.TcpListener
-                        listener.Listen()
-                        return Some listener
-                    with
-                    | e ->
-                        Logger.warnLogger.Log(nameof StartLaunchListenRemoteConnectionsLoop, e.ToString())
-                        return None
+                try
+                    Tcp.tryBindTo IPAddress.Any model.AppSettings.ListenerPort model.TcpListener
+                    model.TcpListener.Listen()
+                    return Result.Ok ()
+                with
+                | e ->
+                    Logger.warnLogger.Log(nameof StartLaunchListenRemoteConnectionsLoop, e.ToString())
+                    return Result.Error ()
             }
             model, Cmd.OfAsync.perform tryListenRemoteConnections () LaunchListenRemoteConnectionsIterationFinished
         | LaunchListenRemoteConnectionsIterationFinished tcpListener ->
             match tcpListener with
-            | Some socket -> { model with TcpListener = socket }, Cmd.ofSub <| connectionsSubscription socket
-            | None -> model, Cmd.ofMsg StartLaunchListenRemoteConnectionsLoop
+            | Result.Ok _ -> model, Cmd.ofSub <| connectionsSubscription model.TcpListener
+            | Result.Error _ -> model, Cmd.ofMsg StartLaunchListenRemoteConnectionsLoop
         | TryConnectToLocalPeers ->
             let connectToLocalPeers _ = async {
                 let existingUnixSockets =
