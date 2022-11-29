@@ -16,7 +16,6 @@ open Elmish
 open Avalonia.FuncUI
 open Avalonia.Controls
 open Skillaz.SecureChat.Message
-open AppSettings
 
 module Chat =
     
@@ -112,15 +111,17 @@ module Chat =
             
         let handleSocket = handleSocketPackage dispatch
         
-        let rec handlePackage client dispatch = async {
+        let rec handlePackages client dispatch = async {
             try
                 do! P2PNetwork.listenAndHandleSocketPackage client handleSocket
-                do! handlePackage client dispatch
+                do! handlePackages client dispatch
             with
-            | e -> Logger.warnLogger.Log("handleSocketPackage", $"{e.ToString()}")
+            | e ->
+                client.Dispose()
+                Logger.warnLogger.Log("handleSocketPackage", $"{e.ToString()}")
         }
         
-        handlePackage client dispatch |> Async.Start
+        handlePackages client dispatch |> Async.Start
     
     let init (appSettings: AppSettingsJson.Root) =
         
