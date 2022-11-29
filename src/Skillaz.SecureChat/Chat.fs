@@ -56,6 +56,7 @@ module Chat =
     }
         
     type Msg =
+        | TryStartListenRemoteConnections
         | ConnectToKnownPeers of string
         | KnownPeersConnected of ConnectedEndpoint list
         | ClientConnected of Socket
@@ -70,7 +71,7 @@ module Chat =
         | ToggleSecretCodeVisibility
         | ClearDeadConnectedApps
         
-    let iAmAliveSubscription dispatch =
+    let repeatEverySecond dispatch =
         let rec tick dispatch = async {
             Msg.SendIAmAliveMessage |> dispatch
             do! Task.Delay(TimeSpan.FromSeconds(1)) |> Async.AwaitTask
@@ -78,9 +79,11 @@ module Chat =
         }
         tick dispatch |> Async.Start
         
-    let clearDeadConnectedAppsSubscription dispatch =
+    let repeatEveryTwoSeconds dispatch =
         let rec tick dispatch = async {
             Msg.ClearDeadConnectedApps |> dispatch
+            Msg.TryStartListenRemoteConnections |> dispatch
+            
             do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
             do! tick dispatch
         }
@@ -134,7 +137,7 @@ module Chat =
             AppSettings = appSettings
             CurrentUserName = Environment.UserName
             CurrentAppMark = appMark
-            TcpListener = Tcp.listener IPAddress.Any appSettings.ListenerPort
+            TcpListener = Tcp.listener
             UnixSocketListener = UnixSocket.listener unixSocketFilePath
             UnixSocketFilePath = unixSocketFilePath
             Connections = []
@@ -144,21 +147,30 @@ module Chat =
             SecretCodeVisible = false;
         }
         
-        model.TcpListener.Listen()
         model.UnixSocketListener.Listen()
         
         let cmd = Cmd.batch [
             Cmd.ofMsg <| ConnectToKnownPeers unixSocketsFolder
-            Cmd.ofSub <| connectionsSubscription model.TcpListener
             Cmd.ofSub <| connectionsSubscription model.UnixSocketListener
-            Cmd.ofSub <| iAmAliveSubscription
-            Cmd.ofSub <| clearDeadConnectedAppsSubscription 
+            Cmd.ofSub <| repeatEverySecond
+            Cmd.ofSub <| repeatEveryTwoSeconds 
         ]
         
         model, cmd
     
     let update msg model =
         match msg with
+        | TryStartListenRemoteConnections ->
+            if model.TcpListener.IsBound then
+                model, Cmd.none
+            else
+                try
+                    let listener = Tcp.tryBindTo IPAddress.Any model.AppSettings.ListenerPort model.TcpListener
+                    listener.Listen()
+                    { model with TcpListener = listener }, Cmd.ofSub <| connectionsSubscription model.TcpListener
+                with
+                | e ->
+                    model, Cmd.none
         | ConnectToKnownPeers unixSocketFilePath ->
             let accessibleLocalConnections () = async {
                 let existingUnixSockets =

@@ -5,10 +5,13 @@ open System.Net.Sockets
 
 module Tcp =
     
-    let listener (ip:IPAddress) port =
-        let ep = IPEndPoint(ip, port)
-        let tcp = new Socket(ep.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+    let listener =
+        let tcp = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
         tcp.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true)
+        tcp
+        
+    let tryBindTo (ip:IPAddress) port (tcp:Socket) =
+        let ep = IPEndPoint(ip, port)
         tcp.Bind(ep)
         tcp
     
