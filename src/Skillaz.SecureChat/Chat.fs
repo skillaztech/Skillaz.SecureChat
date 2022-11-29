@@ -15,6 +15,7 @@ open Avalonia.Layout
 open Elmish
 open Avalonia.FuncUI
 open Avalonia.Controls
+open Skillaz.SecureChat.AppSettings
 open Skillaz.SecureChat.Message
 
 module Chat =
