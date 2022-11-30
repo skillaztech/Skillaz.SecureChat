@@ -86,7 +86,8 @@ module Chat =
         P2PNetwork.listenSocket listener handle |> Async.Start
         
     let packagesSubscription client dispatch =
-        let handleSocketPackage dispatch packageType bytes read socket  =
+        let handleSocketPackage dispatch packageType bytes read socket =
+            
             let json = Encoding.UTF8.GetString(bytes, 0, read)
             let pt = EnumOfValue(packageType)
             match pt with
@@ -105,7 +106,6 @@ module Chat =
                 do! handlePackages client dispatch
             with
             | e ->
-                client.Dispose()
                 Logger.warnLogger.Log("handleSocketPackage", $"{e.ToString()}")
         }
         
@@ -153,7 +153,7 @@ module Chat =
             Cmd.ofMsg Msg.StartLaunchListenRemoteConnectionsLoop
             Cmd.ofMsg Msg.StartCleanDeadAppsLoop
             Cmd.ofMsg Msg.StartSendIAmAliveLoop
-            Cmd.ofMsg Msg.StartConnectToRemotePeersLoop
+            // Cmd.ofMsg Msg.StartConnectToRemotePeersLoop
             Cmd.ofMsg Msg.TryConnectToLocalPeers
             Cmd.ofSub <| connectionsSubscription model.UnixSocketListener
         ]
