@@ -58,6 +58,7 @@ module Chat =
     }
         
     type Msg =
+        | WaitThenSend of int * Msg
         | StartLaunchListenRemoteConnectionsLoop
         | LaunchListenRemoteConnectionsIterationFinished of Result<unit, unit>
         | StartConnectToRemotePeersLoop
@@ -161,9 +162,13 @@ module Chat =
     
     let update msg model =
         match msg with
+        | WaitThenSend (secsToWait, msg) ->
+            let waitTask secs = async {
+                do! Task.Delay(TimeSpan.FromSeconds(secs)) |> Async.AwaitTask
+            }
+            model, Cmd.OfAsync.perform waitTask secsToWait (fun _ -> msg)
         | StartLaunchListenRemoteConnectionsLoop ->
             let tryListenRemoteConnections _ = async {
-                do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
                 try
                     Tcp.tryBindTo IPAddress.Any model.AppSettings.ListenerPort model.TcpListener
                     model.TcpListener.Listen()
@@ -177,7 +182,7 @@ module Chat =
         | LaunchListenRemoteConnectionsIterationFinished tcpListener ->
             match tcpListener with
             | Result.Ok _ -> model, Cmd.ofSub <| connectionsSubscription model.TcpListener
-            | Result.Error _ -> model, Cmd.ofMsg StartLaunchListenRemoteConnectionsLoop
+            | Result.Error _ -> model, Cmd.ofMsg <| WaitThenSend (2, StartLaunchListenRemoteConnectionsLoop) 
         | TryConnectToLocalPeers ->
             let connectToLocalPeers _ = async {
                 let existingUnixSockets =
@@ -206,7 +211,6 @@ module Chat =
             model, Cmd.OfAsync.perform connectToLocalPeers () PeersConnected
         | StartConnectToRemotePeersLoop ->
             let connectToRemotePeers _ = async {
-                do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
                 return
                     model.AppSettings.KnownPeers
                     |> Array.map IPEndPoint.Parse
@@ -233,7 +237,7 @@ module Chat =
         | ConnectToRemotePeersIterationFinished peers ->
             let msgs = Cmd.batch [
                 Cmd.ofMsg <| PeersConnected peers
-                Cmd.ofMsg StartConnectToRemotePeersLoop
+                Cmd.ofMsg <| WaitThenSend (2, StartConnectToRemotePeersLoop)
             ]
             model, msgs
         | PeersConnected newlyConnected ->
@@ -253,9 +257,7 @@ module Chat =
             
             { model with Connections = connectedEndpoint :: model.Connections }, Cmd.ofSub <| packagesSubscription socket
         | StartSendIAmAliveLoop ->
-            let sendIAmAliveMessageAndGetAvailableConnections _ = async {
-                do! Task.Delay(TimeSpan.FromSeconds(1)) |> Async.AwaitTask
-                
+            let sendIAmAliveMessageAndGetAvailableConnections _ = async {                
                 return
                     model.Connections
                     |> Array.ofList
@@ -282,7 +284,7 @@ module Chat =
             
             model, Cmd.OfAsync.perform sendIAmAliveMessageAndGetAvailableConnections () IAmAliveSendIterationFinished
         | IAmAliveSendIterationFinished connectedEndpoints ->
-            { model with Connections = connectedEndpoints }, Cmd.ofMsg StartSendIAmAliveLoop
+            { model with Connections = connectedEndpoints }, Cmd.ofMsg <| WaitThenSend (1, StartSendIAmAliveLoop)
         | AlivePackageReceived (msg, client) ->
             match msg.RetranslationInfo.RetranslatedBy |> List.contains model.CurrentAppMark with
             | false ->
@@ -348,9 +350,7 @@ module Chat =
                 P2PNetwork.send (EnumToValue(PackageType.Message)) conn.Client msg)
             model, Cmd.none
         | StartCleanDeadAppsLoop ->
-            let clearDeadConnectedApps _ = async {
-                do! Task.Delay(TimeSpan.FromSeconds(2)) |> Async.AwaitTask
-                
+            let clearDeadConnectedApps _ = async {                
                 return
                     model.ConnectedApps
                     |> List.where (fun o -> o.ConnectedTill > DateTime.Now)
@@ -358,7 +358,7 @@ module Chat =
             
             model, Cmd.OfAsync.perform clearDeadConnectedApps () DeadAppsCleanIterationFinished
         | DeadAppsCleanIterationFinished apps ->
-            { model with ConnectedApps = apps }, Cmd.ofMsg StartCleanDeadAppsLoop
+            { model with ConnectedApps = apps }, Cmd.ofMsg <| WaitThenSend (2, StartCleanDeadAppsLoop)
         | AppendLocalMessage m ->
             { model with MessagesList = m :: model.MessagesList }, Cmd.none
         | TextChanged t ->
