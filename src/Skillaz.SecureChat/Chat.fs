@@ -175,7 +175,7 @@ module Chat =
                     return Result.Ok ()
                 with
                 | e ->
-                    Logger.warnLogger.Log(nameof StartLaunchListenRemoteConnectionsLoop, e.ToString())
+                    Logger.warnLogger.Log(nameof StartLaunchListenRemoteConnectionsLoop, $"Failed to start listening remote connections with {e.Message}")
                     return Result.Error ()
             }
             model, Cmd.OfAsync.perform tryListenRemoteConnections () LaunchListenRemoteConnectionsIterationFinished
@@ -202,7 +202,7 @@ module Chat =
                             Some connectionEndpoint
                         with
                         | e -> 
-                            Logger.warnLogger.Log(nameof TryConnectToLocalPeers, "Socket: {0} Ex: {1}", socket, e.ToString())
+                            Logger.warnLogger.Log(nameof TryConnectToLocalPeers, $"Failed to connect to local endpoint {socket} with {e.Message}")
                             None
                     )
                     |> Array.choose id
@@ -226,7 +226,7 @@ module Chat =
                             Some connectionEndpoint
                         with
                         | e -> 
-                            Logger.warnLogger.Log(nameof StartConnectToRemotePeersLoop, "IP: {0} Ex: {1}", ep.ToString(), e.ToString())
+                            Logger.warnLogger.Log(nameof StartConnectToRemotePeersLoop, $"Failed to connect to remote endpoint {ep} with {e.Message}")
                             None
                     )
                     |> Array.choose id
@@ -275,7 +275,7 @@ module Chat =
                             Some t
                         with
                         | e ->
-                            Logger.warnLogger.Log(nameof StartSendIAmAliveLoop, e.ToString())
+                            Logger.warnLogger.Log(nameof StartSendIAmAliveLoop, $"Failed to send alive package to {t.UniqueConnectionMark} with {e.Message}")
                             None
                     )
                     |> List.ofArray
@@ -304,7 +304,12 @@ module Chat =
             let msg = { msg with RetranslationInfo = { msg.RetranslationInfo with RetranslatedBy = model.CurrentAppMark :: msg.RetranslationInfo.RetranslatedBy } }
             model.Connections
             |> List.iter (fun conn ->
-                P2PNetwork.send (EnumToValue(PackageType.Alive)) conn.Client msg)
+                try
+                    P2PNetwork.send (EnumToValue(PackageType.Alive)) conn.Client msg
+                with
+                | e ->
+                    Logger.warnLogger.Log(nameof RetranslateAlivePackage, $"Failed to retranslate alive package to {conn.UniqueConnectionMark} with {e.Message}")
+            )
             model, Cmd.none
         | SendMessage ->
             if not <| String.IsNullOrWhiteSpace(model.MessageInput)
@@ -324,7 +329,8 @@ module Chat =
                     try
                         P2PNetwork.send (EnumToValue(PackageType.Message)) ce.Client newMsg
                     with
-                    | e -> ()
+                    | e -> 
+                        Logger.warnLogger.Log(nameof RetranslateAlivePackage, $"Failed to send message package to {ce.UniqueConnectionMark} with {e.Message}")
                 )
                 { model with MessageInput = ""; },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
             else
@@ -347,7 +353,12 @@ module Chat =
             let msg = { msg with RetranslationInfo = { msg.RetranslationInfo with RetranslatedBy = model.CurrentAppMark :: msg.RetranslationInfo.RetranslatedBy } }
             model.Connections
             |> List.iter (fun conn ->
-                P2PNetwork.send (EnumToValue(PackageType.Message)) conn.Client msg)
+                try
+                    P2PNetwork.send (EnumToValue(PackageType.Message)) conn.Client msg
+                with
+                | e ->
+                    Logger.warnLogger.Log(nameof RetranslateAlivePackage, $"Failed to retranslate message package to {conn.UniqueConnectionMark} with {e.Message}")
+            )
             model, Cmd.none
         | StartCleanDeadAppsLoop ->
             let clearDeadConnectedApps _ = async {                
