@@ -153,7 +153,7 @@ module Chat =
             Cmd.ofMsg Msg.StartLaunchListenRemoteConnectionsLoop
             Cmd.ofMsg Msg.StartCleanDeadAppsLoop
             Cmd.ofMsg Msg.StartSendIAmAliveLoop
-            // Cmd.ofMsg Msg.StartConnectToRemotePeersLoop
+            Cmd.ofMsg Msg.StartConnectToRemotePeersLoop
             Cmd.ofMsg Msg.TryConnectToLocalPeers
             Cmd.ofSub <| connectionsSubscription model.UnixSocketListener
         ]
