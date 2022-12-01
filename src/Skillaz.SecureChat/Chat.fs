@@ -169,20 +169,31 @@ module Chat =
             model, Cmd.OfAsync.perform waitTask secsToWait (fun _ -> msg)
         | StartLaunchListenRemoteConnectionsLoop ->
             let tryListenRemoteConnections _ = async {
-                try
-                    Tcp.tryBindTo IPAddress.Any model.AppSettings.ListenerPort model.TcpListener
-                    model.TcpListener.Listen()
-                    return Result.Ok ()
-                with
-                | e ->
-                    Logger.warnLogger.Log(nameof StartLaunchListenRemoteConnectionsLoop, $"Failed to start listening remote connections with {e.Message}")
+                if not model.TcpListener.IsBound
+                then
+                    try
+                        Tcp.tryBindTo IPAddress.Any model.AppSettings.ListenerPort model.TcpListener
+                        model.TcpListener.Listen()
+                        return Result.Ok ()
+                    with
+                    | e ->
+                        Logger.warnLogger.Log(nameof StartLaunchListenRemoteConnectionsLoop, $"Failed to start listening remote connections with {e.Message}")
+                        return Result.Error ()
+                else
+                    Logger.warnLogger.Log(nameof StartLaunchListenRemoteConnectionsLoop, $"Already listening remote connections")
                     return Result.Error ()
             }
             model, Cmd.OfAsync.perform tryListenRemoteConnections () LaunchListenRemoteConnectionsIterationFinished
         | LaunchListenRemoteConnectionsIterationFinished tcpListener ->
             match tcpListener with
-            | Result.Ok _ -> model, Cmd.ofSub <| connectionsSubscription model.TcpListener
-            | Result.Error _ -> model, Cmd.ofMsg <| WaitThenSend (2, StartLaunchListenRemoteConnectionsLoop) 
+            | Result.Ok _ ->
+                let cmds = Cmd.batch [
+                    Cmd.ofSub <| connectionsSubscription model.TcpListener
+                    Cmd.ofMsg <| WaitThenSend (2, StartLaunchListenRemoteConnectionsLoop)
+                ]
+                model, cmds
+            | Result.Error _ ->
+                model, Cmd.ofMsg <| WaitThenSend (2, StartLaunchListenRemoteConnectionsLoop)
         | TryConnectToLocalPeers ->
             let connectToLocalPeers _ = async {
                 let existingUnixSockets =
@@ -216,16 +227,18 @@ module Chat =
                     |> Array.map IPEndPoint.Parse
                     |> Array.where (fun ep -> model.Connections |> List.exists (fun x -> x.UniqueConnectionMark = ep.ToString()) |> not)
                     |> Array.Parallel.map (fun ep ->
+                        let socket = Tcp.client model.AppSettings.ClientPort
                         try
-                            let socket = Tcp.client ep.Address ep.Port model.AppSettings.ClientPort
+                            let connectedSocket = Tcp.connectSocket ep.Address ep.Port socket
                             let connectionEndpoint = {
                                 UniqueConnectionMark = ep.ToString()
                                 EndPoint = ep
-                                Client = socket
+                                Client = connectedSocket
                             }
                             Some connectionEndpoint
                         with
-                        | e -> 
+                        | e ->
+                            socket.Dispose()
                             Logger.warnLogger.Log(nameof StartConnectToRemotePeersLoop, $"Failed to connect to remote endpoint {ep} with {e.Message}")
                             None
                     )
