@@ -15,16 +15,20 @@ module UnixSocket =
         
         let isUnix = OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
         
-        if isUnix
+        let directoryWasExisting = Directory.Exists(directoryPath)
+        let directory = Directory.CreateDirectory(directoryPath)
+        
+        if not directoryWasExisting
         then
-            let directoryInfo = UnixDirectoryInfo(directoryPath)
-            directoryInfo.FileAccessPermissions <-FileAccessPermissions.AllPermissions
-            directoryInfo.Refresh()
-        else
-            let directory = Directory.CreateDirectory(directoryPath)
-            let accessControl = directory.GetAccessControl()
-            accessControl.AddAccessRule(FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.FullControl, InheritanceFlags.ObjectInherit ||| InheritanceFlags.ContainerInherit, PropagationFlags.NoPropagateInherit, AccessControlType.Allow));
-            directory.SetAccessControl(accessControl)
+            if isUnix
+                then
+                    let directoryInfo = UnixDirectoryInfo(directoryPath)
+                    directoryInfo.FileAccessPermissions <-FileAccessPermissions.AllPermissions
+                    directoryInfo.Refresh()
+                else
+                    let accessControl = directory.GetAccessControl()
+                    accessControl.AddAccessRule(FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.FullControl, InheritanceFlags.ObjectInherit ||| InheritanceFlags.ContainerInherit, PropagationFlags.NoPropagateInherit, AccessControlType.Allow));
+                    directory.SetAccessControl(accessControl)
         
         File.Delete(path)
         
