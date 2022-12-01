@@ -18,10 +18,7 @@ module UnixSocket =
         if isUnix
         then
             let directoryInfo = UnixDirectoryInfo(directoryPath)
-            directoryInfo.FileAccessPermissions <-
-                FileAccessPermissions.UserReadWriteExecute
-                ||| FileAccessPermissions.GroupReadWriteExecute
-                ||| FileAccessPermissions.OtherReadWriteExecute
+            directoryInfo.FileAccessPermissions <-FileAccessPermissions.AllPermissions
             directoryInfo.Refresh()
         else
             let directory = Directory.CreateDirectory(directoryPath)
@@ -37,10 +34,7 @@ module UnixSocket =
         if isUnix
         then
             let fileInfo = UnixFileInfo(path)
-            fileInfo.FileAccessPermissions <-
-                FileAccessPermissions.UserReadWriteExecute
-                ||| FileAccessPermissions.GroupReadWriteExecute
-                ||| FileAccessPermissions.OtherReadWriteExecute
+            fileInfo.FileAccessPermissions <-FileAccessPermissions.AllPermissions
             fileInfo.Refresh()
         else
             let fileInfo = FileInfo(path)
