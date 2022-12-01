@@ -1,5 +1,6 @@
 ﻿namespace Skillaz.SecureChat
 
+open Avalonia.Media
 open FSharp.Core.LanguagePrimitives
 open System
 open System.IO
@@ -43,8 +44,8 @@ module Chat =
     
     type Model = {
         AppSettings: AppSettingsJson.Root
+        AppName: string
         SecretCode: int
-        CurrentUserName: string
         CurrentAppMark: string
         TcpListener: Socket
         UnixSocketFolder: string
@@ -79,6 +80,7 @@ module Chat =
         | SendMessage
         | ToggleSettingsVisibility
         | SecretCodeChanged of int
+        | AppNameChanged of string
         
     let connectionsSubscription listener dispatch =
         let handle socket =
@@ -135,7 +137,7 @@ module Chat =
         let model = {
             AppSettings = appSettings
             SecretCode = appSettings.SecretCode
-            CurrentUserName = Environment.UserName
+            AppName = Environment.UserName
             CurrentAppMark = appMark
             TcpListener = Tcp.listener
             UnixSocketListener = UnixSocket.listener unixSocketFilePath
@@ -278,7 +280,7 @@ module Chat =
                     |> Array.Parallel.map (fun t ->
                         try
                             let msg = {
-                                MessageSender = model.CurrentUserName
+                                MessageSender = model.AppName
                                 AppMark = model.CurrentAppMark
                                 SecretCode = model.SecretCode
                                 RetranslationInfo = {
@@ -331,7 +333,7 @@ module Chat =
                 let newMsg = {
                     DateTime = DateTime.Now
                     MessageText = model.MessageInput
-                    MessageSender = model.CurrentUserName
+                    MessageSender = model.AppName
                     SecretCode = model.SecretCode
                     AppMark = model.CurrentAppMark
                     RetranslationInfo = {
@@ -392,6 +394,8 @@ module Chat =
             { model with SettingsVisible = not model.SettingsVisible }, Cmd.none
         |  SecretCodeChanged secretCode ->
             { model with SecretCode = secretCode }, Cmd.none
+        | AppNameChanged appName ->
+            { model with AppName = appName }, Cmd.none
 
     let view model dispatch =
         Grid.create [
@@ -426,7 +430,7 @@ module Chat =
                                             onlineIndicator
                                             TextBlock.create [
                                                 TextBlock.classes [ "connection"; "local" ]
-                                                TextBlock.text Environment.UserName
+                                                TextBlock.text model.AppName
                                             ]
                                         ]
                                     ]
@@ -463,19 +467,18 @@ module Chat =
                     Grid.row 3
                     Grid.background "#fafafa"
                     Grid.columnDefinitions "5, Auto, 5, *, 5"
-                    Grid.rowDefinitions "5, Auto, 5"
+                    Grid.rowDefinitions "5, Auto, 5, Auto, 5"
                     Grid.isVisible model.SettingsVisible
                     Grid.children [
                         TextBlock.create [
                             TextBlock.column 1
                             TextBlock.row 1
-                            TextBlock.classes [ "label-secret-code" ]
+                            TextBlock.verticalAlignment VerticalAlignment.Center
                             TextBlock.text $"Код:"
                         ]
                         NumericUpDown.create [
                             NumericUpDown.column 3
                             NumericUpDown.row 1
-                            NumericUpDown.classes [ "label-secret-code" ]
                             NumericUpDown.allowSpin false
                             NumericUpDown.showButtonSpinner false
                             NumericUpDown.minimum 100000
@@ -487,6 +490,21 @@ module Chat =
                                     if parseSuccess
                                     then parsedValue |> SecretCodeChanged |> dispatch
                             )
+                        ]
+                        
+                        TextBlock.create [
+                            TextBlock.column 1
+                            TextBlock.row 3
+                            TextBlock.verticalAlignment VerticalAlignment.Center
+                            TextBlock.text $"Имя:"
+                        ]
+                        TextBox.create [
+                            TextBox.column 3
+                            TextBox.row 3
+                            TextBox.textWrapping TextWrapping.NoWrap
+                            TextBox.maxLength 32
+                            TextBox.text model.AppName
+                            TextBox.onTextChanged(fun text -> dispatch <| AppNameChanged text)
                         ]
                     ]
                 ]
@@ -569,7 +587,7 @@ module Chat =
                 
                 TextBlock.create [
                     TextBlock.column 3
-                    TextBlock.row 3
+                    TextBlock.row 5
                     TextBlock.fontSize 10
                     TextBlock.margin (6, 2)
                     TextBlock.foreground "Red"
