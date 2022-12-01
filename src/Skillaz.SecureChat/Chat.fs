@@ -97,6 +97,7 @@ module Chat =
             | PackageType.Message ->
                 let msg = JsonSerializer.Deserialize<ChatMessage>(json)
                 Msg.RemoteChatMessageReceived (msg, socket) |> dispatch
+            | _ -> ()
             
         let handleSocket = handleSocketPackage dispatch
         
