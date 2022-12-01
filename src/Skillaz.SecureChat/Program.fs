@@ -1,7 +1,7 @@
 ﻿namespace Skillaz.SecureChat
 
-open System
 open System.IO
+open System.Reflection
 open Avalonia.Logging
 open Elmish
 open Avalonia
@@ -15,7 +15,7 @@ open Avalonia.FuncUI.Elmish
 type MainWindow() as this =
     inherit HostWindow()
     do
-        let currentProcessDirectory = Path.GetDirectoryName(Environment.ProcessPath)
+        let currentProcessDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
         
         base.Title <- "Skillaz Secure Chat"
         base.Width <- 800.0
