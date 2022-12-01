@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Skillaz Secure Chat
+Exec=/usr/share/Skillaz.SecureChat/Skillaz.SecureChat
+Icon=/usr/share/Skillaz.SecureChat/icon.ico
+Terminal=false
+Type=Application
+StartupNotify=true

@@ -35,6 +35,10 @@
           <Link>logo.ico</Link>
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
+        <None Include="ssc.desktop">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+          <LinuxPath>/usr/share/applications/ssc.desktop</LinuxPath>
+        </None>
         <AvaloniaResource Include="fonts\SkillazBold.ttf" />
         <AvaloniaResource Include="fonts\SkillazBoldItalic.ttf" />
         <AvaloniaResource Include="fonts\SkillazRegular.ttf" />
