@@ -47,19 +47,37 @@
 
 ## MacOS
 
+### Prerequirements
+
+- Macbook (or other OSX machine)
+- [create-dmg utility](https://github.com/create-dmg/create-dmg)
+
 ### Prepare .app package
 
 1. Firstly, prepare binaries for publishing on target machine:
     ```shell
-    dotnet publish -c Release -r osx-x64
+    dotnet publish -c Release -r osx-x64 --self-contained
     ```
 
-2. Next move content of generated `osx-x64` folder to `osx-installer/ssc.app/Contents/MacOS/osx-x64` folder.
-3. If you created the .app on Windows, make sure to run `chmod +x osx-installer/ssc.app/Contents/MacOS/Skillaz.SecureChat` from a Unix machine. Otherwise, the app will not start on macOS.
-4. Move ssc.app folder to target machine
+2. Next move content of generated `osx-x64` folder to `osx-installer/SSC.app/Contents/MacOS/osx-x64` folder.
+3. If you created the .app on Windows, make sure to run `chmod +x osx-installer/SSC.app/Contents/MacOS/Skillaz.SecureChat` from a Unix machine. Otherwise, the app will not start on macOS.
+4. Create dmg package this way:
+   ```shell
+   create-dmg \
+   --volname "Skillaz Secure Chat" \
+   --volicon "src/Skillaz.SecureChat/osx-installer/SSC.app/Contents/Resources/logo.icns" \
+   --icon "SSC.app" 30 60 \
+   --hide-extension "SSC.app" \
+   --app-drop-link 280 60 \
+   "Skillaz Secure Chat.dmg" \
+   "src/Skillaz.SecureChat/osx-installer/SSC.app"
+   ```
+5. Distribute this dmg package to target users
 
 You may also check official instruction how to build and distribute .app packages by Avalonia:
 [link](https://docs.avaloniaui.net/docs/distribution-publishing/macos)
 
 ### Installation
-1. Double-click on ssc.app C:
+1. Open .dmg package on target machine
+2. Move SSC app to Applications folder
+3. Launch SSC

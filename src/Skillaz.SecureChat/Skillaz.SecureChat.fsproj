@@ -49,9 +49,9 @@
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
           <LinuxPath>/usr/share/applications/ssc.desktop</LinuxPath>
         </Content>
-        <Folder Include="osx-installer\ssc.app\Contents\MacOS\osx-x64" />
-        <Content Include="osx-installer\ssc.app\Contents\Resources\logo.icns" />
-        <Content Include="osx-installer\ssc.app\Contents\Info.plist" />
+        <Folder Include="osx-installer\SSC.app\Contents\MacOS\osx-x64" />
+        <Content Include="osx-installer\SSC.app\Contents\Resources\logo.icns" />
+        <Content Include="osx-installer\SSC.app\Contents\Info.plist" />
     </ItemGroup>
 
     <ItemGroup>
