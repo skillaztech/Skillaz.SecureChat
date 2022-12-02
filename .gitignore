@@ -5,3 +5,4 @@ riderModule.iml
 /_ReSharper.Caches/
 /.idea/
 *.exe
+/src/Skillaz.SecureChat/osx-installer/ssc.app/Contents/MacOS/osx-x64/

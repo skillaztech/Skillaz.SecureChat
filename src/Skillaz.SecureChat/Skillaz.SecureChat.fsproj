@@ -35,15 +35,19 @@
           <Link>logo.ico</Link>
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
-        <None Include="ssc.desktop">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-          <LinuxPath>/usr/share/applications/ssc.desktop</LinuxPath>
-        </None>
         <AvaloniaResource Include="fonts\SkillazBold.ttf" />
         <AvaloniaResource Include="fonts\SkillazBoldItalic.ttf" />
         <AvaloniaResource Include="fonts\SkillazRegular.ttf" />
         <AvaloniaResource Include="fonts\SkillazRegularItalic.ttf" />
-        <Content Include="installer\installer.iss" />
+        <Content Include="windows-installer\installer.iss" />
+        <None Include="ubuntu-installer\ssc.desktop">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+          <LinuxPath>/usr/share/applications/ssc.desktop</LinuxPath>
+        </None>
+        <Folder Include="osx-installer\ssc.app\Contents\MacOS\osx-x64" />
+        <Content Include="osx-installer\ssc.app\Contents\MacOS\launcher" />
+        <Content Include="osx-installer\ssc.app\Resources\logo.icns" />
+        <Content Include="osx-installer\ssc.app\Info.plist" />
     </ItemGroup>
 
     <ItemGroup>
