@@ -45,9 +45,8 @@
           <LinuxPath>/usr/share/applications/ssc.desktop</LinuxPath>
         </None>
         <Folder Include="osx-installer\ssc.app\Contents\MacOS\osx-x64" />
-        <Content Include="osx-installer\ssc.app\Contents\MacOS\launcher" />
-        <Content Include="osx-installer\ssc.app\Resources\logo.icns" />
-        <Content Include="osx-installer\ssc.app\Info.plist" />
+        <Content Include="osx-installer\ssc.app\Contents\Resources\logo.icns" />
+        <Content Include="osx-installer\ssc.app\Contents\Info.plist" />
     </ItemGroup>
 
     <ItemGroup>

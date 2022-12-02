@@ -1,9 +1,0 @@
-#!/bin/sh
-
-# Set the working directory
-DIR=$(cd "$(dirname "$0")"; pwd)
-
-# Run the application
-echo "running from $DIR/osx-x64"
-
-open -a Terminal $DIR/osx-x64/Skillaz.SecureChat

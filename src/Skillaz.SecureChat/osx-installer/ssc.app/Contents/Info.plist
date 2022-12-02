@@ -2,23 +2,21 @@
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
     <dict>
-        <key>CFBundleDevelopmentRegion</key>
-        <string>Russian</string>
+        <key>CFBundleName</key>
+        <string>Skillaz Secure Chat</string>
+        <key>CFBundleDisplayName</key>
+        <string>Skillaz Secure Chat</string>
+        <key>CFBundleIdentifier</key>
+        <string>SSC-024958EC</string>
         <key>CFBundleExecutable</key>
-        <string>launcher</string>
+        <string>osx-x64/Skillaz.SecureChat</string>
         <key>CFBundleIconFile</key>
         <string>logo.icns</string>
-        <key>CFBundleInfoDictionaryVersion</key>
-        <string>6.0</string>
         <key>CFBundlePackageType</key>
         <string>APPL</string>
-        <key>CFBundleShortVersionString</key>
-        <string>1.0</string>
         <key>CFBundleSignature</key>
         <string>xmmd</string>
         <key>CFBundleVersion</key>
         <string>1.0</string>
-        <key>NSAppleScriptEnabled</key>
-        <string>NO</string>
     </dict>
 </plist>
