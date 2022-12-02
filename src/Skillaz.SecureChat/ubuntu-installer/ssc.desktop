@@ -1,7 +1,9 @@
 [Desktop Entry]
 Name=Skillaz Secure Chat
+Comment=Network messages transporter
 Exec=/usr/share/Skillaz.SecureChat/Skillaz.SecureChat
-Icon=/usr/share/Skillaz.SecureChat/icon.ico
+Icon=/usr/share/Skillaz.SecureChat/logo.png
 Terminal=false
 Type=Application
 StartupNotify=true
+Categories=Application;Network;Utility

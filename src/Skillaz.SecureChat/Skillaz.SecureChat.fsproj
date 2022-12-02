@@ -31,19 +31,23 @@
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <AvaloniaResource Include="Styles.xaml" />
-        <None Include="..\..\logo.ico">
+        <Content Include="..\..\logo.ico">
           <Link>logo.ico</Link>
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </None>
+        </Content>
+        <Content Include="..\..\logo.png">
+          <Link>logo.png</Link>
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
         <AvaloniaResource Include="fonts\SkillazBold.ttf" />
         <AvaloniaResource Include="fonts\SkillazBoldItalic.ttf" />
         <AvaloniaResource Include="fonts\SkillazRegular.ttf" />
         <AvaloniaResource Include="fonts\SkillazRegularItalic.ttf" />
         <Content Include="windows-installer\installer.iss" />
-        <None Include="ubuntu-installer\ssc.desktop">
+        <Content Include="ubuntu-installer\ssc.desktop">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
           <LinuxPath>/usr/share/applications/ssc.desktop</LinuxPath>
-        </None>
+        </Content>
         <Folder Include="osx-installer\ssc.app\Contents\MacOS\osx-x64" />
         <Content Include="osx-installer\ssc.app\Contents\Resources\logo.icns" />
         <Content Include="osx-installer\ssc.app\Contents\Info.plist" />
