@@ -16,7 +16,6 @@ open Avalonia.Layout
 open Elmish
 open Avalonia.FuncUI
 open Avalonia.Controls
-open Skillaz.SecureChat.AppSettings
 open Skillaz.SecureChat.Message
 
 module Chat =
@@ -43,9 +42,11 @@ module Chat =
     }
     
     type Model = {
-        AppSettings: AppSettingsJson.Root
         AppName: string
         SecretCode: int
+        KnownPeers: IPEndPoint list
+        ListenerPort: int
+        ClientPort: int
         CurrentAppMark: string
         TcpListener: Socket
         UnixSocketFolder: string
@@ -114,9 +115,10 @@ module Chat =
         
         handlePackages client dispatch |> Async.Start
     
-    let init (appSettings: AppSettingsJson.Root) =
+    let init =
         
         let appMark =
+            // TODO: Move this to db
             let appMarkFilePath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "/ssc/", "appmark.ini")
             if File.Exists(appMarkFilePath)
             then File.ReadAllText(appMarkFilePath)
@@ -135,8 +137,14 @@ module Chat =
             Path.Join(unixSocketsFolder, $"{Convert.ToBase64String(Encoding.UTF8.GetBytes(appMark))}.socket")
         
         let model = {
-            AppSettings = appSettings
-            SecretCode = appSettings.SecretCode
+            KnownPeers = [ // TODO: Move to db
+                IPEndPoint(IPAddress.Parse("10.132.1.10"), 63211)
+                IPEndPoint(IPAddress.Parse("192.168.1.128"), 63211)
+                IPEndPoint(IPAddress.Parse("192.168.1.148"), 63211)
+            ]
+            ListenerPort = 63211 // TODO: Move to db
+            ClientPort = 63211 // TODO: Move to db
+            SecretCode = 123456 // TODO: Initialize randomly first time and save into db
             AppName = Environment.UserName
             CurrentAppMark = appMark
             TcpListener = Tcp.listener
@@ -175,7 +183,7 @@ module Chat =
                 if not model.TcpListener.IsBound
                 then
                     try
-                        Tcp.tryBindTo IPAddress.Any model.AppSettings.ListenerPort model.TcpListener
+                        Tcp.tryBindTo IPAddress.Any model.ListenerPort model.TcpListener
                         model.TcpListener.Listen()
                         return Result.Ok ()
                     with
@@ -226,11 +234,11 @@ module Chat =
         | StartConnectToRemotePeersLoop ->
             let connectToRemotePeers _ = async {
                 return
-                    model.AppSettings.KnownPeers
-                    |> Array.map IPEndPoint.Parse
+                    model.KnownPeers
+                    |> Array.ofList
                     |> Array.where (fun ep -> model.Connections |> List.exists (fun x -> x.UniqueConnectionMark = ep.ToString()) |> not)
                     |> Array.Parallel.map (fun ep ->
-                        let socket = Tcp.client model.AppSettings.ClientPort
+                        let socket = Tcp.client model.ClientPort
                         try
                             let connectedSocket = Tcp.connectSocket ep.Address ep.Port socket
                             let connectionEndpoint = {

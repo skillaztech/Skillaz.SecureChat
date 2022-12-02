@@ -17,7 +17,6 @@
 
     <ItemGroup>
         <Compile Include="ListHelpers.fs" />
-        <Compile Include="AppSettings.fs" />
         <Compile Include="Message.fs" />
         <Compile Include="Logger.fs" />
         <Compile Include="p2p\P2PNetwork.fs" />
@@ -25,12 +24,6 @@
         <Compile Include="p2p\Tcp.fs" />
         <Compile Include="Chat.fs" />
         <Compile Include="Program.fs" />
-        <Content Include="appsettings.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
-        <Content Include="appsettings.template.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
         <AvaloniaResource Include="Styles.xaml" />
         <Content Include="..\..\logo.ico">
           <Link>logo.ico</Link>
