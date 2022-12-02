@@ -12,6 +12,7 @@
         <FileVersion>1.0.0.0</FileVersion>
         <NeutralLanguage>ru</NeutralLanguage>
         <ApplicationIcon>..\..\logo.ico</ApplicationIcon>
+        <UseAppHost>true</UseAppHost>
     </PropertyGroup>
 
     <ItemGroup>
