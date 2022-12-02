@@ -56,6 +56,10 @@
 
 2. Next move content of generated `osx-x64` folder to `osx-installer/ssc.app/Contents/MacOS/osx-x64` folder.
 3. If you created the .app on Windows, make sure to run `chmod +x osx-installer/ssc.app/Contents/MacOS/Skillaz.SecureChat` from a Unix machine. Otherwise, the app will not start on macOS.
+4. Move ssc.app folder to target machine
 
 You may also check official instruction how to build and distribute .app packages by Avalonia:
 [link](https://docs.avaloniaui.net/docs/distribution-publishing/macos)
+
+### Installation
+1. Double-click on ssc.app C:
