@@ -10,7 +10,7 @@ module Message =
     type AliveMessage = {
         MessageSender: string
         SecretCode: int
-        AppMark: string
+        UserId: string
         RetranslationInfo: RetranslationInfo
     }
     
@@ -19,7 +19,7 @@ module Message =
         MessageSender: string
         DateTime: DateTime
         SecretCode: int
-        AppMark: string
+        UserId: string
         RetranslationInfo: RetranslationInfo
     }
 

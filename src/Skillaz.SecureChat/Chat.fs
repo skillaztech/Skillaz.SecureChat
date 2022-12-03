@@ -30,24 +30,24 @@ module Chat =
     }
     
     type ConnectedEndpoint = {
-        UniqueConnectionMark: string
+        ConnectionId: string
         EndPoint: EndPoint
         Client: Socket
     }
     
     type ConnectedApp = {
         AppName: string
-        AppMark: string
+        UserId: string
         ConnectedTill: DateTime
     }
     
     type Model = {
-        AppName: string
+        UserName: string
         SecretCode: int
         KnownPeers: IPEndPoint list
         ListenerPort: int
         ClientPort: int
-        CurrentAppMark: string
+        UserId: string
         TcpListener: Socket
         UnixSocketFolder: string
         UnixSocketFilePath: string
@@ -55,7 +55,7 @@ module Chat =
         MessageInput: string
         MessagesList: LocalMessage list
         Connections: ConnectedEndpoint list
-        ConnectedApps: ConnectedApp list
+        ConnectedUsers: ConnectedApp list
         SettingsVisible: bool
     }
         
@@ -115,18 +115,23 @@ module Chat =
         
         handlePackages client dispatch |> Async.Start
     
-    let init =
+    let init (currentProcessDirectory: string) =
         
-        let appMark =
-            // TODO: Move this to db
-            let appMarkFilePath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "/ssc/", "appmark.ini")
-            if File.Exists(appMarkFilePath)
-            then File.ReadAllText(appMarkFilePath)
-            else
-                let mark = Guid.NewGuid().ToString()
-                Directory.CreateDirectory(Path.GetDirectoryName(appMarkFilePath)) |> ignore
-                File.WriteAllText(appMarkFilePath, mark)
-                mark
+        let appSettings = Configuration.AppSettings()
+        let appSettingsFilePath = Path.Join(currentProcessDirectory, "appsettings.yaml")
+        appSettings.Load(appSettingsFilePath)
+        
+        let userSettings = Configuration.UserSettings()
+        let userSettingsFilePath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "/ssc/", "usersettings.yaml")
+        if not <| File.Exists(userSettingsFilePath)
+        then
+            Directory.CreateDirectory(Path.GetDirectoryName(userSettingsFilePath)) |> ignore
+            userSettings.UserId <- Guid.NewGuid()
+            userSettings.Name <- Environment.UserName
+            userSettings.SecretCode <- Random.Shared.Next(100000, 999999)
+            userSettings.Save(userSettingsFilePath)
+        
+        userSettings.Load(userSettingsFilePath)
         
         let unixSocketsFolder =
             if OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
@@ -134,25 +139,23 @@ module Chat =
             else Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "/ssc/")
         
         let unixSocketFilePath =
-            Path.Join(unixSocketsFolder, $"{Convert.ToBase64String(Encoding.UTF8.GetBytes(appMark))}.socket")
+            Path.Join(unixSocketsFolder, $"{Convert.ToBase64String(Encoding.UTF8.GetBytes(userSettings.UserId.ToString()))}.socket")
+            
+        let knownRemotePeers = appSettings.KnownRemotePeers |> Seq.map IPEndPoint.Parse |> List.ofSeq
         
         let model = {
-            KnownPeers = [ // TODO: Move to db
-                IPEndPoint(IPAddress.Parse("10.132.1.10"), 63211)
-                IPEndPoint(IPAddress.Parse("192.168.1.128"), 63211)
-                IPEndPoint(IPAddress.Parse("192.168.1.148"), 63211)
-            ]
-            ListenerPort = 63211 // TODO: Move to db
-            ClientPort = 63211 // TODO: Move to db
-            SecretCode = 123456 // TODO: Initialize randomly first time and save into db
-            AppName = Environment.UserName
-            CurrentAppMark = appMark
+            KnownPeers = knownRemotePeers
+            ListenerPort = appSettings.ListenerTcpPort
+            ClientPort = appSettings.ClientTcpPort
+            SecretCode = userSettings.SecretCode
+            UserName = userSettings.Name
+            UserId = userSettings.UserId.ToString()
             TcpListener = Tcp.listener
             UnixSocketListener = UnixSocket.listener unixSocketFilePath
             UnixSocketFolder = unixSocketsFolder
             UnixSocketFilePath = unixSocketFilePath
             Connections = []
-            ConnectedApps = []
+            ConnectedUsers = []
             MessageInput = ""
             MessagesList = []
             SettingsVisible = false;
@@ -212,12 +215,12 @@ module Chat =
                     |> Array.where (fun o -> o <> model.UnixSocketFilePath)
                 return
                     existingUnixSockets
-                    |> Array.where (fun socket -> model.Connections |> List.exists (fun x -> x.UniqueConnectionMark = socket) |> not)
+                    |> Array.where (fun socket -> model.Connections |> List.exists (fun x -> x.ConnectionId = socket) |> not)
                     |> Array.Parallel.map (fun socket ->
                         try
                             let unixSocketClient = UnixSocket.client socket
                             let connectionEndpoint = {
-                                UniqueConnectionMark = socket
+                                ConnectionId = socket
                                 EndPoint = unixSocketClient.RemoteEndPoint
                                 Client = unixSocketClient
                             }
@@ -236,13 +239,13 @@ module Chat =
                 return
                     model.KnownPeers
                     |> Array.ofList
-                    |> Array.where (fun ep -> model.Connections |> List.exists (fun x -> x.UniqueConnectionMark = ep.ToString()) |> not)
+                    |> Array.where (fun ep -> model.Connections |> List.exists (fun x -> x.ConnectionId = ep.ToString()) |> not)
                     |> Array.Parallel.map (fun ep ->
                         let socket = Tcp.client model.ClientPort
                         try
                             let connectedSocket = Tcp.connectSocket ep.Address ep.Port socket
                             let connectionEndpoint = {
-                                UniqueConnectionMark = ep.ToString()
+                                ConnectionId = ep.ToString()
                                 EndPoint = ep
                                 Client = connectedSocket
                             }
@@ -274,7 +277,7 @@ module Chat =
             { model with Connections = model.Connections @ newlyConnected }, Cmd.batch cmds
         | ClientConnected socket ->
             let connectedEndpoint = {
-                UniqueConnectionMark = socket.RemoteEndPoint.ToString()
+                ConnectionId = socket.RemoteEndPoint.ToString()
                 EndPoint = socket.RemoteEndPoint
                 Client = socket
             }
@@ -288,18 +291,18 @@ module Chat =
                     |> Array.Parallel.map (fun t ->
                         try
                             let msg = {
-                                MessageSender = model.AppName
-                                AppMark = model.CurrentAppMark
+                                MessageSender = model.UserName
+                                UserId = model.UserId
                                 SecretCode = model.SecretCode
                                 RetranslationInfo = {
-                                    RetranslatedBy = [ model.CurrentAppMark ]
+                                    RetranslatedBy = [ model.UserId ]
                                 }
                             }
                             P2PNetwork.send (EnumToValue(PackageType.Alive)) t.Client msg
                             Some t
                         with
                         | e ->
-                            Logger.warnLogger.Log(nameof StartSendIAmAliveLoop, $"Failed to send alive package to {t.UniqueConnectionMark} with {e.Message}")
+                            Logger.warnLogger.Log(nameof StartSendIAmAliveLoop, $"Failed to send alive package to {t.ConnectionId} with {e.Message}")
                             None
                     )
                     |> List.ofArray
@@ -310,29 +313,29 @@ module Chat =
         | IAmAliveSendIterationFinished connectedEndpoints ->
             { model with Connections = connectedEndpoints }, Cmd.ofMsg <| WaitThenSend (1, StartSendIAmAliveLoop)
         | AlivePackageReceived (msg, client) ->
-            match msg.RetranslationInfo.RetranslatedBy |> List.contains model.CurrentAppMark with
+            match msg.RetranslationInfo.RetranslatedBy |> List.contains model.UserId with
             | false ->
                 let apps =
-                    match model.SecretCode = msg.SecretCode && msg.AppMark <> model.CurrentAppMark with
+                    match model.SecretCode = msg.SecretCode && msg.UserId <> model.UserId with
                     | true ->
-                        model.ConnectedApps
+                        model.ConnectedUsers
                         |> List.upsert
-                               (fun o -> o.AppMark = msg.AppMark)
-                               { AppName = msg.MessageSender; AppMark = msg.AppMark; ConnectedTill = DateTime.Now.AddSeconds(4) }
-                    | false -> model.ConnectedApps
+                               (fun o -> o.UserId = msg.UserId)
+                               { AppName = msg.MessageSender; UserId = msg.UserId; ConnectedTill = DateTime.Now.AddSeconds(4) }
+                    | false -> model.ConnectedUsers
             
-                { model with ConnectedApps = apps }, Cmd.ofMsg <| RetranslateAlivePackage msg
+                { model with ConnectedUsers = apps }, Cmd.ofMsg <| RetranslateAlivePackage msg
             | true ->
                 model, Cmd.none
         | RetranslateAlivePackage msg ->
-            let msg = { msg with RetranslationInfo = { msg.RetranslationInfo with RetranslatedBy = model.CurrentAppMark :: msg.RetranslationInfo.RetranslatedBy } }
+            let msg = { msg with RetranslationInfo = { msg.RetranslationInfo with RetranslatedBy = model.UserId :: msg.RetranslationInfo.RetranslatedBy } }
             model.Connections
             |> List.iter (fun conn ->
                 try
                     P2PNetwork.send (EnumToValue(PackageType.Alive)) conn.Client msg
                 with
                 | e ->
-                    Logger.warnLogger.Log(nameof RetranslateAlivePackage, $"Failed to retranslate alive package to {conn.UniqueConnectionMark} with {e.Message}")
+                    Logger.warnLogger.Log(nameof RetranslateAlivePackage, $"Failed to retranslate alive package to {conn.ConnectionId} with {e.Message}")
             )
             model, Cmd.none
         | SendMessage ->
@@ -341,11 +344,11 @@ module Chat =
                 let newMsg = {
                     DateTime = DateTime.Now
                     MessageText = model.MessageInput
-                    MessageSender = model.AppName
+                    MessageSender = model.UserName
                     SecretCode = model.SecretCode
-                    AppMark = model.CurrentAppMark
+                    UserId = model.UserId
                     RetranslationInfo = {
-                        RetranslatedBy = [ model.CurrentAppMark ]
+                        RetranslatedBy = [ model.UserId ]
                     }
                 }
                 model.Connections
@@ -354,13 +357,13 @@ module Chat =
                         P2PNetwork.send (EnumToValue(PackageType.Message)) ce.Client newMsg
                     with
                     | e -> 
-                        Logger.warnLogger.Log(nameof RetranslateAlivePackage, $"Failed to send message package to {ce.UniqueConnectionMark} with {e.Message}")
+                        Logger.warnLogger.Log(nameof RetranslateAlivePackage, $"Failed to send message package to {ce.ConnectionId} with {e.Message}")
                 )
                 { model with MessageInput = ""; },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
             else
                 model, Cmd.none
         | RemoteChatMessageReceived (msg, client) ->
-            match msg.RetranslationInfo.RetranslatedBy |> List.contains model.CurrentAppMark with
+            match msg.RetranslationInfo.RetranslatedBy |> List.contains model.UserId with
             | false ->
                 match msg.SecretCode = model.SecretCode with
                 | true ->
@@ -374,26 +377,26 @@ module Chat =
             | true ->
                 model, Cmd.none
         | RetranslateChatMessage msg ->
-            let msg = { msg with RetranslationInfo = { msg.RetranslationInfo with RetranslatedBy = model.CurrentAppMark :: msg.RetranslationInfo.RetranslatedBy } }
+            let msg = { msg with RetranslationInfo = { msg.RetranslationInfo with RetranslatedBy = model.UserId :: msg.RetranslationInfo.RetranslatedBy } }
             model.Connections
             |> List.iter (fun conn ->
                 try
                     P2PNetwork.send (EnumToValue(PackageType.Message)) conn.Client msg
                 with
                 | e ->
-                    Logger.warnLogger.Log(nameof RetranslateAlivePackage, $"Failed to retranslate message package to {conn.UniqueConnectionMark} with {e.Message}")
+                    Logger.warnLogger.Log(nameof RetranslateAlivePackage, $"Failed to retranslate message package to {conn.ConnectionId} with {e.Message}")
             )
             model, Cmd.none
         | StartCleanDeadAppsLoop ->
             let clearDeadConnectedApps _ = async {                
                 return
-                    model.ConnectedApps
+                    model.ConnectedUsers
                     |> List.where (fun o -> o.ConnectedTill > DateTime.Now)
             }
             
             model, Cmd.OfAsync.perform clearDeadConnectedApps () DeadAppsCleanIterationFinished
         | DeadAppsCleanIterationFinished apps ->
-            { model with ConnectedApps = apps }, Cmd.ofMsg <| WaitThenSend (2, StartCleanDeadAppsLoop)
+            { model with ConnectedUsers = apps }, Cmd.ofMsg <| WaitThenSend (2, StartCleanDeadAppsLoop)
         | AppendLocalMessage m ->
             { model with MessagesList = m :: model.MessagesList }, Cmd.none
         | TextChanged t ->
@@ -403,7 +406,7 @@ module Chat =
         |  SecretCodeChanged secretCode ->
             { model with SecretCode = secretCode }, Cmd.none
         | AppNameChanged appName ->
-            { model with AppName = appName }, Cmd.none
+            { model with UserName = appName }, Cmd.none
 
     let view model dispatch =
         Grid.create [
@@ -428,7 +431,7 @@ module Chat =
                                 [
                                     TextBlock.create [
                                         TextBlock.classes [ "label-connections" ]
-                                        TextBlock.text $"В сети: {model.Connections |> List.map (fun o -> o.UniqueConnectionMark)}"
+                                        TextBlock.text $"В сети: {model.Connections |> List.map (fun o -> o.ConnectionId)}"
                                     ]
                                     StackPanel.create [
                                         StackPanel.spacing 5
@@ -438,12 +441,12 @@ module Chat =
                                             onlineIndicator
                                             TextBlock.create [
                                                 TextBlock.classes [ "connection"; "local" ]
-                                                TextBlock.text model.AppName
+                                                TextBlock.text model.UserName
                                             ]
                                         ]
                                     ]
                                 ]
-                                @ (model.ConnectedApps
+                                @ (model.ConnectedUsers
                                     |> List.map (fun app ->
                                         StackPanel.create [
                                             StackPanel.spacing 5
@@ -511,8 +514,10 @@ module Chat =
                             TextBox.row 3
                             TextBox.textWrapping TextWrapping.NoWrap
                             TextBox.maxLength 32
-                            TextBox.text model.AppName
-                            TextBox.onTextChanged(fun text -> dispatch <| AppNameChanged text)
+                            TextBox.text model.UserName
+                            TextBox.onTextChanged(fun text ->
+                                if text.Length > 4
+                                then AppNameChanged text |> dispatch)
                         ]
                     ]
                 ]

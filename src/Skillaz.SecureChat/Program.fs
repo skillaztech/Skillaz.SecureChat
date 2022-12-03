@@ -27,7 +27,7 @@ type MainWindow() as this =
         //this.VisualRoot.VisualRoot.Renderer.DrawFps <- true
         //this.VisualRoot.VisualRoot.Renderer.DrawDirtyRects <- true
         
-        Program.mkProgram (fun () -> Chat.init) Chat.update Chat.view
+        Program.mkProgram (fun () -> Chat.init currentProcessDirectory) Chat.update Chat.view
         |> Program.withHost this
         |> Program.run
         
