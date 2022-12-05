@@ -29,6 +29,7 @@ type MainWindow() as this =
         
         Program.mkProgram (fun () -> Chat.init currentProcessDirectory) Chat.update Chat.view
         |> Program.withHost this
+        |> Program.withErrorHandler (fun (msg, e) -> Logger.nlogger.FatalException e $"{msg}")
         |> Program.run
         
 type App() =

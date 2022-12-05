@@ -62,5 +62,6 @@
         <PackageReference Update="FSharp.Core" Version="6.0.6" />
         <PackageReference Include="LiteDB.FSharp" Version="2.16.0" />
         <PackageReference Include="Mono.Posix" Version="7.1.0-final.1.21458.1" />
+        <PackageReference Include="NLog.FSharp" Version="4.5.3" />
     </ItemGroup>
 </Project>

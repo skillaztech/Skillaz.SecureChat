@@ -19,6 +19,7 @@ open Avalonia.Controls
 open Skillaz.SecureChat.Message
 
 module Chat =
+    let logger = Logger.nlogger
     
     type PackageType =
         | Alive = 201
@@ -110,37 +111,64 @@ module Chat =
                 do! handlePackages client dispatch
             with
             | e ->
-                Logger.warnLogger.Log("handleSocketPackage", $"{e.ToString()}")
+                logger.WarnException e $"[packagesSubscription] Failed to handle package from {client.RemoteEndPoint}"
+                // TODO: Reraise? Чтобы подписка (subscription) на сообщения падала и не поднималась, если мы вдруг не смогли обработать входящий пакет.
         }
         
         handlePackages client dispatch |> Async.Start
     
     let init (currentProcessDirectory: string) =
         
+        logger.Info $"[init] Start app init into {currentProcessDirectory}"
+        
         let appSettings = Configuration.AppSettings()
         let appSettingsFilePath = Path.Join(currentProcessDirectory, "appsettings.yaml")
-        appSettings.Load(appSettingsFilePath)
+        
+        try
+            logger.Info $"[init] Loading application settings from {appSettingsFilePath}"
+            appSettings.Load(appSettingsFilePath)
+        with
+        | e ->
+            logger.FatalException e "[init] Application settings loading failed with an exception. Exiting..."
+            reraise()
+        
+        logger.Info $"[init] Application settings loaded from {appSettingsFilePath}. Loaded application settings: {appSettings}"
         
         let userSettings = Configuration.UserSettings()
         let userSettingsFilePath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "/ssc/", "usersettings.yaml")
         if not <| File.Exists(userSettingsFilePath)
         then
+            logger.Info $"[init] User settings file does not exists in path {userSettingsFilePath}, creating..."
+            
             Directory.CreateDirectory(Path.GetDirectoryName(userSettingsFilePath)) |> ignore
             userSettings.UserId <- Guid.NewGuid()
             userSettings.Name <- Environment.UserName
             userSettings.SecretCode <- Random.Shared.Next(100000, 999999)
             userSettings.Save(userSettingsFilePath)
         
-        userSettings.Load(userSettingsFilePath)
+        logger.Info $"[init] Loading user settings from {userSettingsFilePath}..."
+        
+        try
+            userSettings.Load(userSettingsFilePath)
+        with
+        | e ->
+            logger.FatalException e $"[init] User settings loading from {userSettingsFilePath} failed with an error. Exiting..."
+            reraise()
+            
+        logger.Info $"[init] User settings loaded from path {userSettingsFilePath}. Loaded user settings {userSettings}"
         
         let unixSocketsFolder =
             if OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
             then "/tmp/ssc/"
             else Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "/ssc/")
+            
+        logger.Debug $"[init] Directory for unix sockets chosen as {unixSocketsFolder}"
         
         let unixSocketFilePath =
             Path.Join(unixSocketsFolder, $"{Convert.ToBase64String(Encoding.UTF8.GetBytes(userSettings.UserId.ToString()))}.socket")
             
+        logger.Info $"[init] Unix socket file path for current user selected as {unixSocketFilePath}"
+        
         let knownRemotePeers = appSettings.KnownRemotePeers |> Seq.map IPEndPoint.Parse |> List.ofSeq
         
         let model = {
@@ -161,7 +189,16 @@ module Chat =
             SettingsVisible = false;
         }
         
-        model.UnixSocketListener.Listen()
+        logger.Debug "[init] Starting unix socket listener..."
+        
+        try
+            model.UnixSocketListener.Listen()
+        with
+        | e ->
+            logger.FatalException e $"[init] Starting unix socket listener on path {unixSocketFilePath} failed. Exiting..."
+            reraise()
+        
+        logger.Debug $"[init] Unix socket listener started."
         
         let cmd = Cmd.batch [
             Cmd.ofMsg Msg.StartLaunchListenRemoteConnectionsLoop
@@ -186,21 +223,31 @@ module Chat =
                 if not model.TcpListener.IsBound
                 then
                     try
+                        logger.Debug $"[StartLaunchListenRemoteConnectionsLoop] Try to bind and start listening for tcp remote connections on port {model.ListenerPort}..."
+                        
                         Tcp.tryBindTo IPAddress.Any model.ListenerPort model.TcpListener
                         model.TcpListener.Listen()
+                        
+                        logger.Info $"[StartLaunchListenRemoteConnectionsLoop] Tcp listener started on port {model.ListenerPort}"
+                        
                         return Result.Ok ()
                     with
                     | e ->
-                        Logger.warnLogger.Log(nameof StartLaunchListenRemoteConnectionsLoop, $"Failed to start listening remote connections with {e.Message}")
+                        logger.DebugException e $"[StartLaunchListenRemoteConnectionsLoop] Failed to bind or start listening tcp remote connections on port {model.ListenerPort}"
+                        
                         return Result.Error ()
                 else
-                    Logger.warnLogger.Log(nameof StartLaunchListenRemoteConnectionsLoop, $"Already listening remote connections")
+                    logger.Debug $"[StartLaunchListenRemoteConnectionsLoop] Already listening remote tcp connections. No additional actions required."
+                    
                     return Result.Error ()
             }
             model, Cmd.OfAsync.perform tryListenRemoteConnections () LaunchListenRemoteConnectionsIterationFinished
         | LaunchListenRemoteConnectionsIterationFinished tcpListener ->
             match tcpListener with
             | Result.Ok _ ->
+                
+                logger.Info $"[LaunchListenRemoteConnectionsIterationFinished] Launching listening subscriptions..."
+                
                 let cmds = Cmd.batch [
                     Cmd.ofSub <| connectionsSubscription model.TcpListener
                     Cmd.ofMsg <| WaitThenSend (2, StartLaunchListenRemoteConnectionsLoop)
@@ -210,13 +257,28 @@ module Chat =
                 model, Cmd.ofMsg <| WaitThenSend (2, StartLaunchListenRemoteConnectionsLoop)
         | TryConnectToLocalPeers ->
             let connectToLocalPeers _ = async {
-                let existingUnixSockets =
+                
+                logger.Debug $"[TryConnectToLocalPeers] Searching for local peers with unix socket open in folder {model.UnixSocketFolder}..."
+                
+                let otherNonConnectedUnixSockets =
                     Directory.GetFiles(model.UnixSocketFolder)
-                    |> Array.where (fun o -> o <> model.UnixSocketFilePath)
+                    |> List.ofArray
+                    |> List.where (fun o -> o <> model.UnixSocketFilePath)
+                    |> List.where (fun socket -> model.Connections |> List.exists (fun x -> x.ConnectionId = socket) |> not)
+                    
+                if otherNonConnectedUnixSockets |> List.length > 0
+                then
+                    logger.Debug $"[TryConnectToLocalPeers] Other non-connected unix sockets found. Connecting to {otherNonConnectedUnixSockets}..."
+                else
+                    logger.Debug $"[TryConnectToLocalPeers] No other non-connected unix sockets found. Skipping..."
+                
                 return
-                    existingUnixSockets
-                    |> Array.where (fun socket -> model.Connections |> List.exists (fun x -> x.ConnectionId = socket) |> not)
+                    otherNonConnectedUnixSockets
+                    |> Array.ofList
                     |> Array.Parallel.map (fun socket ->
+                        
+                        logger.Debug $"[TryConnectToLocalPeers] Connecting to local unix socket {socket}..."
+                        
                         try
                             let unixSocketClient = UnixSocket.client socket
                             let connectionEndpoint = {
@@ -226,8 +288,10 @@ module Chat =
                             }
                             Some connectionEndpoint
                         with
-                        | e -> 
-                            Logger.warnLogger.Log(nameof TryConnectToLocalPeers, $"Failed to connect to local endpoint {socket} with {e.Message}")
+                        | e ->
+                            
+                            logger.DebugException e $"[TryConnectToLocalPeers] Failed to connect to local unix socket {socket}"
+                            
                             None
                     )
                     |> Array.choose id
@@ -236,12 +300,25 @@ module Chat =
             model, Cmd.OfAsync.perform connectToLocalPeers () PeersConnected
         | StartConnectToRemotePeersLoop ->
             let connectToRemotePeers _ = async {
-                return
+                
+                logger.Debug $"[StartConnectToRemotePeersLoop] Defining non-connected known peers..."
+                
+                let nonConnectedRemotePeers =
                     model.KnownPeers
+                    |> List.where (fun ep -> model.Connections |> List.exists (fun x -> x.ConnectionId = ep.ToString()) |> not)
+                    
+                if nonConnectedRemotePeers |> List.length > 0
+                then logger.Debug $"[StartConnectToRemotePeersLoop] Non-connected known peers found {nonConnectedRemotePeers}. Connecting..."
+                else logger.Debug $"[StartConnectToRemotePeersLoop] All known peers already connected. Skipping..."
+                
+                return
+                    nonConnectedRemotePeers
                     |> Array.ofList
-                    |> Array.where (fun ep -> model.Connections |> List.exists (fun x -> x.ConnectionId = ep.ToString()) |> not)
                     |> Array.Parallel.map (fun ep ->
                         let socket = Tcp.client model.ClientPort
+                        
+                        logger.Debug $"[StartConnectToRemotePeersLoop] Connecting to remote tcp endpoint {ep} from {socket.LocalEndPoint}..."
+                        
                         try
                             let connectedSocket = Tcp.connectSocket ep.Address ep.Port socket
                             let connectionEndpoint = {
@@ -252,8 +329,8 @@ module Chat =
                             Some connectionEndpoint
                         with
                         | e ->
+                            logger.DebugException e $"[StartConnectToRemotePeersLoop] Connection to remote tcp endpoint {ep} failed"
                             socket.Dispose()
-                            Logger.warnLogger.Log(nameof StartConnectToRemotePeersLoop, $"Failed to connect to remote endpoint {ep} with {e.Message}")
                             None
                     )
                     |> Array.choose id
@@ -262,6 +339,9 @@ module Chat =
             
             model, Cmd.OfAsync.perform connectToRemotePeers () ConnectToRemotePeersIterationFinished
         | ConnectToRemotePeersIterationFinished peers ->
+            
+            logger.Debug $"[ConnectToRemotePeersIterationFinished] Connecting to remote peers {peers} finished. Launching subscriptions..."
+            
             let msgs = Cmd.batch [
                 Cmd.ofMsg <| PeersConnected peers
                 Cmd.ofMsg <| WaitThenSend (2, StartConnectToRemotePeersLoop)
@@ -276,6 +356,9 @@ module Chat =
             
             { model with Connections = model.Connections @ newlyConnected }, Cmd.batch cmds
         | ClientConnected socket ->
+            
+            logger.Info $"[ClientConnected] Remote tcp client connected from {socket.RemoteEndPoint}"
+            
             let connectedEndpoint = {
                 ConnectionId = socket.RemoteEndPoint.ToString()
                 EndPoint = socket.RemoteEndPoint
@@ -284,11 +367,14 @@ module Chat =
             
             { model with Connections = connectedEndpoint :: model.Connections }, Cmd.ofSub <| packagesSubscription socket
         | StartSendIAmAliveLoop ->
-            let sendIAmAliveMessageAndGetAvailableConnections _ = async {                
+            let sendIAmAliveMessageAndGetAvailableConnections _ = async {
+                
+                logger.Debug $"[StartSendIAmAliveLoop] Sending I am alive package to all connections..."
+                
                 return
                     model.Connections
                     |> Array.ofList
-                    |> Array.Parallel.map (fun t ->
+                    |> Array.Parallel.map (fun conn ->
                         try
                             let msg = {
                                 MessageSender = model.UserName
@@ -298,11 +384,12 @@ module Chat =
                                     RetranslatedBy = [ model.UserId ]
                                 }
                             }
-                            P2PNetwork.send (EnumToValue(PackageType.Alive)) t.Client msg
-                            Some t
+                            P2PNetwork.send (EnumToValue(PackageType.Alive)) conn.Client msg
+                            Some conn
                         with
                         | e ->
-                            Logger.warnLogger.Log(nameof StartSendIAmAliveLoop, $"Failed to send alive package to {t.ConnectionId} with {e.Message}")
+                            logger.DebugException e $"[StartSendIAmAliveLoop] Failed to send I am alive package {msg} to {conn}"
+                            
                             None
                     )
                     |> List.ofArray
@@ -313,15 +400,25 @@ module Chat =
         | IAmAliveSendIterationFinished connectedEndpoints ->
             { model with Connections = connectedEndpoints }, Cmd.ofMsg <| WaitThenSend (1, StartSendIAmAliveLoop)
         | AlivePackageReceived (msg, client) ->
+            
+            logger.Debug $"[AlivePackageReceived] Alive package {msg} received from {client}"
+            
             match msg.RetranslationInfo.RetranslatedBy |> List.contains model.UserId with
             | false ->
+                
+                logger.Debug $"[AlivePackageReceived] I am alive package {msg} not being retranslated by this app. Retranslating..."
+                
                 let apps =
                     match model.SecretCode = msg.SecretCode && msg.UserId <> model.UserId with
                     | true ->
+                        
+                        logger.Debug $"[AlivePackageReceived] I am alive package {msg} for me. Updating connection lifetime..."
+                        
                         model.ConnectedUsers
                         |> List.upsert
                                (fun o -> o.UserId = msg.UserId)
                                { AppName = msg.MessageSender; UserId = msg.UserId; ConnectedTill = DateTime.Now.AddSeconds(4) }
+                               
                     | false -> model.ConnectedUsers
             
                 { model with ConnectedUsers = apps }, Cmd.ofMsg <| RetranslateAlivePackage msg
@@ -335,7 +432,7 @@ module Chat =
                     P2PNetwork.send (EnumToValue(PackageType.Alive)) conn.Client msg
                 with
                 | e ->
-                    Logger.warnLogger.Log(nameof RetranslateAlivePackage, $"Failed to retranslate alive package to {conn.ConnectionId} with {e.Message}")
+                    logger.DebugException e $"[RetranslateAlivePackage] Failed to retranslate alive package to {conn}"
             )
             model, Cmd.none
         | SendMessage ->
@@ -351,22 +448,34 @@ module Chat =
                         RetranslatedBy = [ model.UserId ]
                     }
                 }
+                
+                logger.Info $"[SendMessage] Sending new message {newMsg} to all connected clients {model.Connections}..."
+                
                 model.Connections
                 |> List.iter (fun ce ->
                     try
                         P2PNetwork.send (EnumToValue(PackageType.Message)) ce.Client newMsg
                     with
-                    | e -> 
-                        Logger.warnLogger.Log(nameof RetranslateAlivePackage, $"Failed to send message package to {ce.ConnectionId} with {e.Message}")
+                    | e ->
+                        logger.DebugException e $"[SendMessage] Failed to send message {msg} package to connection {ce}"
                 )
                 { model with MessageInput = ""; },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
             else
                 model, Cmd.none
         | RemoteChatMessageReceived (msg, client) ->
+            
+            logger.Debug $"[RemoteChatMessageReceived] Chat message {msg} package received by {client.RemoteEndPoint}"
+            
             match msg.RetranslationInfo.RetranslatedBy |> List.contains model.UserId with
             | false ->
+                
+                logger.Debug $"[RemoteChatMessageReceived] Chat message {msg} by {client.RemoteEndPoint} not being retranslated by this app. Retranslating..."
+                
                 match msg.SecretCode = model.SecretCode with
                 | true ->
+                    
+                    logger.Info $"[RemoteChatMessageReceived] Chat message {msg} for me by {client.RemoteEndPoint}. Append message to messages list..."
+                        
                     let cmds = [
                         Cmd.ofMsg <| AppendLocalMessage { Message = msg; IsMe = false }
                         Cmd.ofMsg <| RetranslateChatMessage msg
@@ -384,14 +493,19 @@ module Chat =
                     P2PNetwork.send (EnumToValue(PackageType.Message)) conn.Client msg
                 with
                 | e ->
-                    Logger.warnLogger.Log(nameof RetranslateAlivePackage, $"Failed to retranslate message package to {conn.ConnectionId} with {e.Message}")
+                    logger.DebugException e $"[RetranslateChatMessage] Failed to retranslate chat message package to {conn}"
             )
             model, Cmd.none
         | StartCleanDeadAppsLoop ->
-            let clearDeadConnectedApps _ = async {                
-                return
+            let clearDeadConnectedApps _ = async {
+                
+                let aliveConnections, deadConnections =
                     model.ConnectedUsers
-                    |> List.where (fun o -> o.ConnectedTill > DateTime.Now)
+                    |> List.partition (fun o -> o.ConnectedTill > DateTime.Now)
+                
+                logger.Debug $"[StartCleanDeadAppsLoop] Cleaning dead users {deadConnections}... Only {aliveConnections} stands alive"
+                  
+                return aliveConnections
             }
             
             model, Cmd.OfAsync.perform clearDeadConnectedApps () DeadAppsCleanIterationFinished
@@ -403,7 +517,7 @@ module Chat =
             { model with MessageInput = t }, Cmd.none
         | ToggleSettingsVisibility ->
             { model with SettingsVisible = not model.SettingsVisible }, Cmd.none
-        |  SecretCodeChanged secretCode ->
+        | SecretCodeChanged secretCode ->
             { model with SecretCode = secretCode }, Cmd.none
         | AppNameChanged appName ->
             { model with UserName = appName }, Cmd.none
