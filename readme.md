@@ -6,9 +6,13 @@
 - [InnoSetup](https://jrsoftware.org/isinfo.php)
 
 ### Create .exe installer
-1. Launch InnoSetup
-2. Compile windows-installer/installer.iss to produce installer .exe file
-3. Send .exe file to target machine
+1. Prepare binaries by this command:
+    ```shell
+    dotnet publish -c Release -r win-x64 --self-contained
+    ```
+2. Launch Inno Script Studio
+3. Compile windows-installer/installer.iss to produce installer .exe file
+4. Send .exe file to target machine
 
 ### Installation
 1. Launch .exe installer
