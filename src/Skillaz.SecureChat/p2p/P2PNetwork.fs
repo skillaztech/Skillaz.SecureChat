@@ -42,7 +42,16 @@ module P2PNetwork =
         
         let length = BitConverter.ToInt32 packageLengthBuffer
         let packagePayloadBuffer = Array.zeroCreate length
-        let! read = networkStream.ReadAsync(packagePayloadBuffer, 0, length) |> Async.AwaitTask
+        
+        let rec readTillTheEnd length read buffer (stream: NetworkStream) = async {
+            let! readCurrentBatch = stream.ReadAsync(buffer, read, (length - read)) |> Async.AwaitTask
+            let alreadyRead = read + readCurrentBatch
+            if alreadyRead = length
+            then return length
+            else return! readTillTheEnd length alreadyRead buffer stream
+        }
+        
+        let! read = readTillTheEnd length 0 packagePayloadBuffer networkStream
         
         invoke packageType packagePayloadBuffer read tcpClient
         

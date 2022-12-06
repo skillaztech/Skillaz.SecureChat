@@ -13,6 +13,7 @@
         <NeutralLanguage>ru</NeutralLanguage>
         <ApplicationIcon>..\..\logo.ico</ApplicationIcon>
         <UseAppHost>true</UseAppHost>
+        <RuntimeIdentifiers>ubuntu-x64;win-x64;osx-x64</RuntimeIdentifiers>
     </PropertyGroup>
 
     <ItemGroup>
