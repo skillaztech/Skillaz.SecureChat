@@ -58,6 +58,8 @@ module Chat =
         Connections: ConnectedEndpoint list
         ConnectedUsers: ConnectedApp list
         SettingsVisible: bool
+        AppSettingsFilePath: string
+        UserSettingsFilePath: string
     }
         
     type Msg =
@@ -83,6 +85,7 @@ module Chat =
         | ToggleSettingsVisibility
         | SecretCodeChanged of int
         | UserNameChanged of string
+        | SaveUserSettingsToConfig
         
     let connectionsSubscription listener dispatch =
         let handle socket =
@@ -186,7 +189,9 @@ module Chat =
             ConnectedUsers = []
             MessageInput = ""
             MessagesList = []
-            SettingsVisible = false;
+            SettingsVisible = false
+            AppSettingsFilePath = appSettingsFilePath
+            UserSettingsFilePath = userSettingsFilePath
         }
         
         logger.Debug "[init] Starting unix socket listener..."
@@ -517,10 +522,26 @@ module Chat =
             { model with MessageInput = t }, Cmd.none
         | ToggleSettingsVisibility ->
             { model with SettingsVisible = not model.SettingsVisible }, Cmd.none
-        | SecretCodeChanged secretCode ->
+        | SecretCodeChanged secretCode ->            
             { model with SecretCode = secretCode }, Cmd.none
-        | UserNameChanged appName ->
-            { model with UserName = appName }, Cmd.none
+        | UserNameChanged userName ->            
+            { model with UserName = userName }, Cmd.none
+        
+        | SaveUserSettingsToConfig ->
+            
+            try
+                let us = Configuration.UserSettings()
+                us.Load(model.UserSettingsFilePath)
+                us.Name <- model.UserName
+                us.SecretCode <- model.SecretCode
+                us.Save()
+                
+                logger.Info $"User settings are changed and saved: {us}"
+            with
+            | e ->
+                logger.ErrorException e $"Can't update user settings"
+            
+            model, Cmd.none
 
     let view model dispatch =
         Grid.create [
@@ -615,6 +636,10 @@ module Chat =
                                     if parseSuccess
                                     then parsedValue |> SecretCodeChanged |> dispatch
                             )
+                            NumericUpDown.onLostFocus (
+                                fun _ ->
+                                    SaveUserSettingsToConfig |> dispatch
+                            )
                         ]
                         
                         TextBlock.create [
@@ -631,7 +656,12 @@ module Chat =
                             TextBox.text model.UserName
                             TextBox.onTextChanged(fun text ->
                                 if text.Length > 4
-                                then UserNameChanged text |> dispatch)
+                                then UserNameChanged text |> dispatch
+                            )
+                            TextBox.onLostFocus (
+                                fun _ ->
+                                    SaveUserSettingsToConfig |> dispatch
+                            )
                         ]
                     ]
                 ]
