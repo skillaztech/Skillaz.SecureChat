@@ -1,4 +1,4 @@
-# Prepare installers
+# Build installers
 
 ## Windows
 
