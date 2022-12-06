@@ -82,7 +82,7 @@ module Chat =
         | SendMessage
         | ToggleSettingsVisibility
         | SecretCodeChanged of int
-        | AppNameChanged of string
+        | UserNameChanged of string
         
     let connectionsSubscription listener dispatch =
         let handle socket =
@@ -519,7 +519,7 @@ module Chat =
             { model with SettingsVisible = not model.SettingsVisible }, Cmd.none
         | SecretCodeChanged secretCode ->
             { model with SecretCode = secretCode }, Cmd.none
-        | AppNameChanged appName ->
+        | UserNameChanged appName ->
             { model with UserName = appName }, Cmd.none
 
     let view model dispatch =
@@ -631,7 +631,7 @@ module Chat =
                             TextBox.text model.UserName
                             TextBox.onTextChanged(fun text ->
                                 if text.Length > 4
-                                then AppNameChanged text |> dispatch)
+                                then UserNameChanged text |> dispatch)
                         ]
                     ]
                 ]
