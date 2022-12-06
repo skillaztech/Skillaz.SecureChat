@@ -16,7 +16,7 @@ let nlogger =
     fileTarget.Layout <- defaultLayout
     fileTarget.FileName <- logsDirectory
     fileTarget.MaxArchiveFiles <- 3
-    config.AddRule(LogLevel.Debug, LogLevel.Fatal, fileTarget)
+    config.AddRule(LogLevel.Info, LogLevel.Fatal, fileTarget)
     
     let debugTarget = new NLog.Targets.DebuggerTarget "debug"
     debugTarget.Layout <- defaultLayout

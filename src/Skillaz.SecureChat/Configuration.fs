@@ -10,5 +10,6 @@ type UserSettings =
             UserId: 00000000-0000-0000-0000-000000000000
             Name: ""
             SecretCode: 000000
+            LogLevel: ""
             """>
 

@@ -16,6 +16,7 @@ open Avalonia.Layout
 open Elmish
 open Avalonia.FuncUI
 open Avalonia.Controls
+open NLog
 open Skillaz.SecureChat.Message
 
 module Chat =
@@ -145,9 +146,12 @@ module Chat =
             logger.Info $"[init] User settings file does not exists in path {userSettingsFilePath}, creating..."
             
             Directory.CreateDirectory(Path.GetDirectoryName(userSettingsFilePath)) |> ignore
+            
             userSettings.UserId <- Guid.NewGuid()
             userSettings.Name <- Environment.UserName
             userSettings.SecretCode <- Random.Shared.Next(100000, 999999)
+            userSettings.LogLevel <- "Info"
+            
             userSettings.Save(userSettingsFilePath)
         
         logger.Info $"[init] Loading user settings from {userSettingsFilePath}..."
@@ -160,6 +164,22 @@ module Chat =
             reraise()
             
         logger.Info $"[init] User settings loaded from path {userSettingsFilePath}. Loaded user settings {userSettings}"
+        
+        let logLevelFromUserSettings =
+            match userSettings.LogLevel with
+            | "Trace" -> LogLevel.Trace
+            | "Debug" -> LogLevel.Debug
+            | "Info" -> LogLevel.Info
+            | "Warn" -> LogLevel.Warn
+            | "Error" -> LogLevel.Error
+            | "Fatal" -> LogLevel.Fatal
+            | _ -> LogLevel.Info
+        
+        LogManager.Configuration.LoggingRules
+        |> Seq.iter (fun o -> o.SetLoggingLevels(logLevelFromUserSettings, LogLevel.Fatal))
+        LogManager.ReconfigExistingLoggers()
+        
+        logger.Info $"[init] Log level from user settings enabled {logLevelFromUserSettings}"
         
         let unixSocketsFolder =
             if OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
