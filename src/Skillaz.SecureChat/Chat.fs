@@ -566,7 +566,7 @@ module Chat =
                                 [
                                     TextBlock.create [
                                         TextBlock.classes [ "label-connections" ]
-                                        TextBlock.text $"В сети: {model.Connections |> List.map (fun o -> o.ConnectionId)}"
+                                        TextBlock.text $"В сети:"
                                     ]
                                     StackPanel.create [
                                         StackPanel.spacing 5
