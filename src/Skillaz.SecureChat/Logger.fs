@@ -10,14 +10,17 @@ let private logsDirectory = Path.Join(Environment.GetFolderPath(Environment.Spec
 let nlogger =
     let config = NLog.Config.LoggingConfiguration()
     
+    let defaultLayout = "${longdate} ${level} ${message:withexception=true}"
+    
     let fileTarget = new NLog.Targets.FileTarget "file"
-    fileTarget.Layout <- "${longdate} ${level} ${message:withexception=true}"
+    fileTarget.Layout <- defaultLayout
     fileTarget.FileName <- logsDirectory
     fileTarget.MaxArchiveFiles <- 3
     config.AddRule(LogLevel.Debug, LogLevel.Fatal, fileTarget)
     
-    let consoleTarget = new NLog.Targets.ColoredConsoleTarget "console"
-    config.AddRule(LogLevel.Debug, LogLevel.Fatal, consoleTarget)
+    let debugTarget = new NLog.Targets.DebuggerTarget "debug"
+    debugTarget.Layout <- defaultLayout
+    config.AddRule(LogLevel.Debug, LogLevel.Fatal, debugTarget)
     
     LogManager.Configuration <- config
     Logger()
