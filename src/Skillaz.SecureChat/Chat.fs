@@ -137,14 +137,9 @@ module Chat =
             logger.FatalException e "[init] Application settings loading failed with an exception. Exiting..."
             reraise()
         
-        try 
-            if appSettings.MaxChatMessageLength = 0 then failwith "Max Chat Message Length is not defined in application settings"
-            if appSettings.ClientTcpPort = 0 then failwith "Client Tcp Port is not defined in application settings"
-            if appSettings.ListenerTcpPort = 0 then failwith "Listener Tcp Port is not defined in application settings"
-        with
-        | e ->
-            logger.FatalException e $"[init] Application settings validation failed. Exiting..."
-            reraise()
+        if appSettings.MaxChatMessageLength = 0 then appSettings.MaxChatMessageLength <- 3000
+        if appSettings.ClientTcpPort = 0 then appSettings.ClientTcpPort <- 63211
+        if appSettings.ListenerTcpPort = 0 then appSettings.ListenerTcpPort <- 63211
         
         logger.Info $"[init] Application settings loaded from {appSettingsFilePath}. Loaded application settings: {appSettings}"
         
@@ -171,15 +166,10 @@ module Chat =
         | e ->
             logger.FatalException e $"[init] User settings loading from {userSettingsFilePath} failed with an error. Exiting..."
             reraise()
-
-        try 
-            if userSettings.UserId = Guid.Empty then failwith "User Id is not defined in user settings"
-            if userSettings.Name = String.Empty then failwith "User Name is not defined in user settings"
-            if userSettings.SecretCode = 0 then failwith "Secret Code is not defined in user settings"
-        with
-        | e ->
-            logger.FatalException e $"[init] User settings validation failed. Exiting..."
-            reraise()
+            
+        if userSettings.Name = String.Empty then userSettings.Name <- Environment.UserName
+        if userSettings.SecretCode = 0 then userSettings.SecretCode <- Random.Shared.Next(100000, 999999)
+        if userSettings.UserId = Guid.Empty then userSettings.UserId <- Guid.NewGuid()
             
         logger.Info $"[init] User settings loaded from path {userSettingsFilePath}. Loaded user settings {userSettings}"
         
