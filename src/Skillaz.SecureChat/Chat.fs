@@ -718,6 +718,7 @@ module Chat =
                     Border.column 3
                     Border.columnSpan 3
                     Border.row 1
+                    Border.rowSpan 3
                     Border.classes [ "border-chat" ]
                     Border.child (
                         ScrollViewer.create [
