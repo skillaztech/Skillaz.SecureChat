@@ -10,6 +10,18 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "root", "root", "{D25CB71C-3
 		readme.md = readme.md
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{E2FA7658-B885-49C3-A884-835203415342}"
+	ProjectSection(SolutionItems) = preProject
+		.github\PULL_REQUEST_TEMPLATE.md = .github\PULL_REQUEST_TEMPLATE.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ISSUE_TEMPLATE", "ISSUE_TEMPLATE", "{9A02AF79-A212-401F-9B7F-6E2BC27C98FD}"
+	ProjectSection(SolutionItems) = preProject
+		.github\ISSUE_TEMPLATE\---bug-report.md = .github\ISSUE_TEMPLATE\---bug-report.md
+		.github\ISSUE_TEMPLATE\---feature-request.md = .github\ISSUE_TEMPLATE\---feature-request.md
+		.github\ISSUE_TEMPLATE\---questions-and-help.md = .github\ISSUE_TEMPLATE\---questions-and-help.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,5 +35,7 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{944EE6C3-C720-4BEA-9F09-87A1DD41E9CB} = {00E428E4-3C51-4C6B-8DF8-1C1372EFD29D}
+		{E2FA7658-B885-49C3-A884-835203415342} = {D25CB71C-312B-486C-84E1-7F00BC9311E2}
+		{9A02AF79-A212-401F-9B7F-6E2BC27C98FD} = {E2FA7658-B885-49C3-A884-835203415342}
 	EndGlobalSection
 EndGlobal
