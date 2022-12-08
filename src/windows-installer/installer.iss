@@ -4,10 +4,10 @@
 #define AppId "3D86CA30-41C8-4E19-AA6A-1C20B6E6127D"
 #define AuthorName "Danila Chervonny"
 #define ApplicationName "Skillaz Secure Chat"
-#define ApplicationInstallerName "Skillaz.SecureChat.win-x64"
+#define ApplicationShortenName "Skillaz.SecureChat"
 #define ApplicationInstallationFolder "SkillazSecureChat"
-#define ApplicationExeFile "Skillaz.SecureChat.exe"
-#define ApplicationVersion GetFileVersion("..\bin\Release\{ApplicationExeFile}")
+#define ApplicationExeFile "Skillaz.SecureChat.exe" 
+#define ApplicationVersion GetVersionNumbersString("..\bin\Release\net6.0\win-x64\Skillaz.SecureChat.exe")
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -21,7 +21,7 @@ AppPublisher={#AuthorName}
 DefaultDirName={commonpf}\{#ApplicationName}
 DefaultGroupName={#ApplicationName}
 AllowNoIcons=yes
-OutputBaseFilename={#ApplicationInstallerName}
+OutputBaseFilename={#ApplicationShortenName}.{#ApplicationVersion}.win-x64
 Compression=lzma
 SolidCompression=yes
 AppCopyright={#AuthorName}
