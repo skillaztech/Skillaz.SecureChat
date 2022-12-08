@@ -33,7 +33,6 @@ VersionInfoProductName={#ApplicationName}
 AppPublisherURL=https://picolino.dev/
 AppSupportURL=https://picolino.dev/
 VersionInfoProductVersion={#ApplicationVersion}
-LicenseFile=..\..\license.md
 UninstallDisplayName={#ApplicationName}
 UninstallDisplayIcon={app}\logo.ico
 
@@ -48,7 +47,6 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "..\bin\Release\net6.0\win-x64\*.dll"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "..\bin\Release\net6.0\win-x64\*.yaml"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "..\bin\Release\net6.0\win-x64\*.exe"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-Source: "..\..\license.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\logo.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]

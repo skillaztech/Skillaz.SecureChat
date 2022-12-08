@@ -7,8 +7,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "root", "root", "{D25CB71C-312B-486C-84E1-7F00BC9311E2}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
-		license.md = license.md
-		logo.ico = logo.ico
 		readme.md = readme.md
 	EndProjectSection
 EndProject
