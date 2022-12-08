@@ -6,4 +6,5 @@ riderModule.iml
 /.idea/
 *.exe
 *.dmg
-/src/Skillaz.SecureChat/osx-installer/SSC.app/Contents/MacOS/osx-x64/
+/src/osx-installer/SSC.app/Contents/MacOS/osx-x64/
+/src/windows-installer/Output/
