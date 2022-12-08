@@ -11,7 +11,7 @@
         <AssemblyVersion>1.0.0.0</AssemblyVersion>
         <FileVersion>1.0.0.0</FileVersion>
         <NeutralLanguage>ru</NeutralLanguage>
-        <ApplicationIcon>..\..\logo.ico</ApplicationIcon>
+        <ApplicationIcon>..\logo.ico</ApplicationIcon>
         <UseAppHost>true</UseAppHost>
         <RuntimeIdentifiers>ubuntu-x64;win-x64;osx-x64</RuntimeIdentifiers>
     </PropertyGroup>
@@ -30,11 +30,11 @@
         <Compile Include="Chat.fs" />
         <Compile Include="Program.fs" />
         <AvaloniaResource Include="Styles.xaml" />
-        <Content Include="..\..\logo.ico">
+        <Content Include="..\logo.ico">
           <Link>logo.ico</Link>
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
-        <Content Include="..\..\logo.png">
+        <Content Include="..\logo.png">
           <Link>logo.png</Link>
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>

@@ -89,7 +89,7 @@ This allows to create groups of users that able to move from one group to anothe
 
 2. To show this app into applications menu you need to execute:
     ```shell
-    sudo cp /usr/share/Skillaz.SecureChat/ubuntu-installer/ssc.desktop /usr/share/applications/ssc.desktop
+    sudo cp /usr/share/ubuntu-installer/ssc.desktop /usr/share/applications/ssc.desktop
     ```
 
 ## MacOS
@@ -112,12 +112,12 @@ This allows to create groups of users that able to move from one group to anothe
    ```shell
    create-dmg \
    --volname "Skillaz Secure Chat" \
-   --volicon "src/Skillaz.SecureChat/osx-installer/SSC.app/Contents/Resources/logo.icns" \
+   --volicon "src/osx-installer/SSC.app/Contents/Resources/logo.icns" \
    --icon "SSC.app" 30 60 \
    --hide-extension "SSC.app" \
    --app-drop-link 280 60 \
    "Skillaz Secure Chat.dmg" \
-   "src/Skillaz.SecureChat/osx-installer/SSC.app"
+   "src/osx-installer/SSC.app"
    ```
 5. Distribute this dmg package to target users
 

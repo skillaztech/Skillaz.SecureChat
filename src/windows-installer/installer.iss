@@ -26,14 +26,14 @@ SolidCompression=yes
 AppCopyright={#AuthorName}
 PrivilegesRequired=none
 AppContact=contact@picolino.dev
-SetupIconFile=..\..\..\logo.ico
+SetupIconFile=..\..\logo.ico
 VersionInfoVersion={#ApplicationVersion}
 VersionInfoCopyright={#AuthorName}
 VersionInfoProductName={#ApplicationName}
 AppPublisherURL=https://picolino.dev/
 AppSupportURL=https://picolino.dev/
 VersionInfoProductVersion={#ApplicationVersion}
-LicenseFile=..\..\..\license.md
+LicenseFile=..\..\license.md
 UninstallDisplayName={#ApplicationName}
 UninstallDisplayIcon={app}\logo.ico
 
@@ -48,8 +48,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "..\bin\Release\net6.0\win-x64\*.dll"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "..\bin\Release\net6.0\win-x64\*.yaml"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "..\bin\Release\net6.0\win-x64\*.exe"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-Source: "..\..\..\license.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\..\logo.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\license.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\logo.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#ApplicationInstallationFolder}"; Filename: "{app}\{#ApplicationExeFile}"
