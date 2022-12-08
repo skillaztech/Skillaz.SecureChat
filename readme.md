@@ -2,6 +2,8 @@
 
 # Skillaz Secure Chat
 
+Peer-to-peer chat application for network communication with ability to setup data transmission limitations, separated groups and multiple-users-on-one-machine support.
+
 ## Problem
 Imagine, you have a single terminal server that you use to access some protected environment, for example, RDP-server. 
 Also you have a lot of sensitive data under that protected environment. In common case limited access to that information is allowed and needed,
@@ -36,6 +38,8 @@ For now, SSC able to setup these limitations:
 ### Secret codes
 To setup communications between two machines you need to make security code that was randomly generated at the first application launch to match onto both applications you want to connect.
 If you have `123456` secret code on the first machine, you should set equal secret code on the second machine. Then they will be connected and you could see it in list of connected users.
+
+This allows to create groups of users that able to move from one group to another by changing their secret code if they are located in same network.
 
 # Build & Launch installers
 
