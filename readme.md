@@ -1,9 +1,48 @@
-# Build installers
+<img src="logo.ico" alt="logo" align="right"/>
+
+# Skillaz Secure Chat
+
+## Problem
+Imagine, you have a single terminal server that you use to access some protected environment, for example, RDP-server. 
+Also you have a lot of sensitive data under that protected environment. In common case limited access to that information is allowed and needed,
+but if a big bunch of data would be exported from protected environment it will be fatal.
+
+RDP server allows you to setup data in- and out- transmission rules, but it has no flexibility in these settings. 
+You can't allow send X bytes of data from RDP server, you may only block or allow it. **And this behaviour does not match our requirements**.
+
+## Solution
+Skillaz Secure Chat (SSC) allows you to setup communication between RDP server and client machines through network with flexible limitations.
+
+For now, SSC able to setup these limitations:
+- Message length (symbols count)
+- *TBD...*
+
+## Prerequirements
+
+1. Open specific TCP port on machine, where you want to access to (Default: `63211`).
+2. Install Skillaz Secure Chat
+3. Setup `ClientTcpPort` and `ListenerTcpPort` into `appsettings.yaml` file to port, you've set in 1st step.
+4. Setup limitations into `appsettings.yaml` to fit your requirements
+
+## Quick start
+
+1. Download installer for your operation system from releases page
+2. Install on machines you want to setup communication between (see installation sections for different operation systems below)
+3. Open specific TCP port on machine, where you want to access to (Default: `63211`).
+4. Go to app installation folder and open `appsettings.yaml`, fill up `KnownPeers` section with IP addresses of machines, you installed SSC into.
+   - Also you may setup other parameters to fit into your requirements
+5. Launch SSC on both machines.
+
+### Secret codes
+To setup communications between two machines you need to make security code that was randomly generated at the first application launch to match onto both applications you want to connect.
+If you have `123456` secret code on the first machine, you should set equal secret code on the second machine. Then they will be connected and you could see it in list of connected users.
+
+# Build & Launch installers
 
 ## Windows
 
 ### Prerequirements
-- [InnoSetup](https://jrsoftware.org/isinfo.php)
+- [Inno Script Studio](https://www.kymoto.org/products/inno-script-studio) or [InnoSetup](https://jrsoftware.org/isinfo.php)
 
 ### Create .exe installer
 1. Prepare binaries by this command:
