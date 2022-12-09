@@ -21,7 +21,7 @@ For now, SSC able to setup these limitations:
 
 ## Quick start
 
-1. Download installer for your operation system from releases page
+1. Download [latest release installer](https://github.com/skillaztech/Skillaz.SecureChat/releases/latest) for your operation system
 2. Install on machines you want to setup communication between (see installation sections for different operation systems below)
 3. Open specific TCP port on machine, where you want to access to (Default: `63211`).
 4. Go to app installation folder and open `appsettings.yaml`, fill up `KnownPeers` section with IP addresses of machines, you installed SSC into.
