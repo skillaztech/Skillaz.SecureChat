@@ -19,13 +19,6 @@ For now, SSC able to setup these limitations:
 - Message length (symbols count)
 - *TBD...*
 
-## Prerequirements
-
-1. Open specific TCP port on machine, where you want to access to (Default: `63211`).
-2. Install Skillaz Secure Chat
-3. Setup `ClientTcpPort` and `ListenerTcpPort` into `appsettings.yaml` file to port, you've set in 1st step.
-4. Setup limitations into `appsettings.yaml` to fit your requirements
-
 ## Quick start
 
 1. Download installer for your operation system from releases page
