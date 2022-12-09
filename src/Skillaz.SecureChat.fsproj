@@ -50,6 +50,8 @@
         <Folder Include="osx-installer\SSC.app\Contents\MacOS\osx-x64" />
         <Content Include="osx-installer\SSC.app\Contents\Resources\logo.icns" />
         <Content Include="osx-installer\SSC.app\Contents\Info.plist" />
+        <Content Include="osx-installer\set-ex-icon" />
+        <Content Include="osx-installer\set-ex-icon.swift" />
     </ItemGroup>
 
     <ItemGroup>

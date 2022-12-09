@@ -116,10 +116,15 @@ This allows to create groups of users that able to move from one group to anothe
    --icon "SSC.app" 30 60 \
    --hide-extension "SSC.app" \
    --app-drop-link 280 60 \
-   "Skillaz Secure Chat.dmg" \
+   --no-internet-enable \
+   "Skillaz.SecureChat.osx-x64.dmg" \
    "src/osx-installer/SSC.app"
    ```
-5. Distribute this dmg package to target users
+5. Next, launch this command to setup external volume icon:
+   ```shell
+   src/osx-installer/set-ex-icon src/osx-installer/SSC.app/Contents/Resources/logo.icns Skillaz.SecureChat.osx-x64.dmg
+   ```
+6. Distribute this dmg package to target users
 
 You may also check official instruction how to build and distribute .app packages by Avalonia:
 [link](https://docs.avaloniaui.net/docs/distribution-publishing/macos)
