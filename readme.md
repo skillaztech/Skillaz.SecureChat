@@ -34,6 +34,12 @@ If you have `123456` secret code on the first machine, you should set equal secr
 
 This allows to create groups of users that able to move from one group to another by changing their secret code if they are located in same network.
 
+### Logs
+Default logs directories:
+
+Linux: `/Users/<username>/.local/share/ssc/logs`  
+Windows: `C:\Users\<username>\AppData\Local\ssc\logs`
+
 # Build & Launch installers
 
 ## Windows
