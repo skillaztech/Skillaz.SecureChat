@@ -1,5 +1,6 @@
 ﻿namespace Skillaz.SecureChat
 
+open System.Runtime.ExceptionServices
 open Avalonia.Media
 open FSharp.Core.LanguagePrimitives
 open System
@@ -73,6 +74,7 @@ module Chat =
         | TryConnectToLocalPeers
         | PeersConnected of ConnectedEndpoint list
         | ClientConnected of Socket
+        | DisconnectClient of Socket
         | StartCleanDeadAppsLoop
         | DeadAppsCleanIterationFinished of ConnectedApp list
         | StartSendIAmAliveLoop
@@ -93,6 +95,11 @@ module Chat =
         let handle socket =
             Msg.ClientConnected socket |> dispatch
         P2PNetwork.listenSocket listener handle |> Async.Start
+
+    type Exception with
+        member this.Reraise () = // https://github.com/fsharp/fslang-suggestions/issues/660
+            (ExceptionDispatchInfo.Capture this).Throw ()
+            Unchecked.defaultof<_>
         
     let packagesSubscription client dispatch =
         let handleSocketPackage dispatch packageType bytes read socket =
@@ -115,9 +122,15 @@ module Chat =
                 do! P2PNetwork.listenAndHandleSocketPackage client handleSocket
                 do! handlePackages client dispatch
             with
+            | :? SocketException as e ->
+                logger.WarnException e $"[packagesSubscription] Failed to handle package from {client.RemoteEndPoint} as SocketException. Stopping handling packages..."
+                dispatch <| DisconnectClient client
+            | :? IOException as e ->
+                logger.WarnException e $"[packagesSubscription] Failed to handle package from {client.RemoteEndPoint} as IOException. Stopping handling packages..."
+                dispatch <| DisconnectClient client
             | e ->
                 logger.WarnException e $"[packagesSubscription] Failed to handle package from {client.RemoteEndPoint}"
-                // TODO: Reraise? Чтобы подписка (subscription) на сообщения падала и не поднималась, если мы вдруг не смогли обработать входящий пакет.
+                
         }
         
         handlePackages client dispatch |> Async.Start
@@ -401,6 +414,14 @@ module Chat =
             }
             
             { model with Connections = connectedEndpoint :: model.Connections }, Cmd.ofSub <| packagesSubscription socket
+        | DisconnectClient socket ->
+            let connections =
+                model.Connections
+                |> List.where (fun o -> o.ConnectionId <> socket.RemoteEndPoint.ToString())
+                
+            socket.Dispose()
+            
+            { model with Connections = connections }, Cmd.none
         | StartSendIAmAliveLoop ->
             let sendIAmAliveMessageAndGetAvailableConnections _ = async {
                 
