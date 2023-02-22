@@ -88,7 +88,7 @@ Windows: `C:\Users\<username>\AppData\Local\ssc\logs`
 
 2. To show this app into applications menu you need to execute:
     ```shell
-    sudo cp /usr/share/ubuntu-installer/ssc.desktop /usr/share/applications/ssc.desktop
+    sudo cp /usr/share/Skillaz.SecureChat/ubuntu-installer/ssc.desktop /usr/share/applications/ssc.desktop
     ```
 
 ## MacOS
