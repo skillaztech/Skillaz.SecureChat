@@ -37,7 +37,7 @@ This allows to create groups of users that able to move from one group to anothe
 ### Logs
 Default logs directories:
 
-Linux: `/Users/<username>/.local/share/ssc/logs`  
+Linux: `/home/<username>/.local/share/ssc/logs`  
 Windows: `C:\Users\<username>\AppData\Local\ssc\logs`
 
 # Build & Launch installers
