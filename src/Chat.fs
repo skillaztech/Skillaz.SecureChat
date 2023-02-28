@@ -1,6 +1,7 @@
 ﻿namespace Skillaz.SecureChat
 
 open System.Runtime.ExceptionServices
+open Avalonia
 open Avalonia.Media
 open FSharp.Core.LanguagePrimitives
 open System
@@ -63,6 +64,7 @@ module Chat =
         SettingsVisible: bool
         AppSettingsFilePath: string
         UserSettingsFilePath: string
+        ChatScrollViewOffset: float
     }
         
     type Msg =
@@ -90,6 +92,7 @@ module Chat =
         | SecretCodeChanged of int
         | UserNameChanged of string
         | SaveUserSettingsToConfig
+        | ScrollChatToEnd
         
     let connectionsSubscription listener dispatch =
         let handle socket =
@@ -246,6 +249,7 @@ module Chat =
             SettingsVisible = false
             AppSettingsFilePath = appSettingsFilePath
             UserSettingsFilePath = userSettingsFilePath
+            ChatScrollViewOffset = 0
         }
         
         logger.Debug "[init] Starting unix socket listener..."
@@ -272,11 +276,11 @@ module Chat =
     
     let update msg model =
         match msg with
-        | WaitThenSend (secsToWait, msg) ->
-            let waitTask secs = async {
-                do! Task.Delay(TimeSpan.FromSeconds(secs)) |> Async.AwaitTask
+        | WaitThenSend (msToWait, msg) ->
+            let waitTask ms = async {
+                do! Task.Delay(TimeSpan.FromMilliseconds(ms)) |> Async.AwaitTask
             }
-            model, Cmd.OfAsync.perform waitTask secsToWait (fun _ -> msg)
+            model, Cmd.OfAsync.perform waitTask msToWait (fun _ -> msg)
         | StartLaunchListenRemoteConnectionsLoop ->
             let tryListenRemoteConnections _ = async {
                 if not model.TcpListener.IsBound
@@ -309,11 +313,11 @@ module Chat =
                 
                 let cmds = Cmd.batch [
                     Cmd.ofSub <| connectionsSubscription model.TcpListener
-                    Cmd.ofMsg <| WaitThenSend (2, StartLaunchListenRemoteConnectionsLoop)
+                    Cmd.ofMsg <| WaitThenSend (2000, StartLaunchListenRemoteConnectionsLoop)
                 ]
                 model, cmds
             | Result.Error _ ->
-                model, Cmd.ofMsg <| WaitThenSend (2, StartLaunchListenRemoteConnectionsLoop)
+                model, Cmd.ofMsg <| WaitThenSend (2000, StartLaunchListenRemoteConnectionsLoop)
         | TryConnectToLocalPeers ->
             let connectToLocalPeers _ = async {
                 
@@ -403,7 +407,7 @@ module Chat =
             
             let msgs = Cmd.batch [
                 Cmd.ofMsg <| PeersConnected peers
-                Cmd.ofMsg <| WaitThenSend (2, StartConnectToRemotePeersLoop)
+                Cmd.ofMsg <| WaitThenSend (2000, StartConnectToRemotePeersLoop)
             ]
             model, msgs
         | PeersConnected newlyConnected ->
@@ -465,7 +469,7 @@ module Chat =
             
             model, Cmd.OfAsync.perform sendIAmAliveMessageAndGetAvailableConnections () IAmAliveSendIterationFinished
         | IAmAliveSendIterationFinished connectedEndpoints ->
-            { model with Connections = connectedEndpoints }, Cmd.ofMsg <| WaitThenSend (1, StartSendIAmAliveLoop)
+            { model with Connections = connectedEndpoints }, Cmd.ofMsg <| WaitThenSend (1000, StartSendIAmAliveLoop)
         | AlivePackageReceived (msg, client) ->
             
             logger.Debug $"[AlivePackageReceived] Alive package {msg} received from {client}"
@@ -577,9 +581,13 @@ module Chat =
             
             model, Cmd.OfAsync.perform clearDeadConnectedApps () DeadAppsCleanIterationFinished
         | DeadAppsCleanIterationFinished apps ->
-            { model with ConnectedUsers = apps }, Cmd.ofMsg <| WaitThenSend (2, StartCleanDeadAppsLoop)
+            { model with ConnectedUsers = apps }, Cmd.ofMsg <| WaitThenSend (2000, StartCleanDeadAppsLoop)
         | AppendLocalMessage m ->
-            { model with MessagesList = m :: model.MessagesList }, Cmd.none
+            let msg = WaitThenSend (0, ScrollChatToEnd) // Delay 0 because rendering pipeline can't update vertical offset correctly without async message between frames
+            let verticalOffset = Double.MaxValue // Vertical offset must be different between frames because of caching inside Avalonia.FuncUI library
+            { model with MessagesList = model.MessagesList @ [m]; ChatScrollViewOffset = verticalOffset }, Cmd.ofMsg msg
+        | ScrollChatToEnd ->
+            { model with ChatScrollViewOffset = Double.PositiveInfinity }, Cmd.none
         | TextChanged t ->
             { model with MessageInput = t }, Cmd.none
         | ToggleSettingsVisibility ->
@@ -785,6 +793,7 @@ module Chat =
                                     ItemsRepeater.dataItems model.MessagesList
                                 ]
                             )
+                            ScrollViewer.offset <| Vector(Double.NegativeInfinity, model.ChatScrollViewOffset)
                         ]
                     )
                 ]
