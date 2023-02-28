@@ -19,6 +19,10 @@ For now, SSC able to setup these limitations:
 - Message length (symbols count)
 - *TBD...*
 
+<p align="center" width="100%">
+    <img src="https://user-images.githubusercontent.com/17460456/221876159-cb8bdd9f-986d-4321-9871-108e644a3f26.png" alt="ssc-screenshot"/>
+</p>
+
 ## Quick start
 
 1. Download [latest release installer](https://github.com/skillaztech/Skillaz.SecureChat/releases/latest) for your operation system
