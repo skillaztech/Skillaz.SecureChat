@@ -52,7 +52,7 @@ module Chat =
         ListenerPort: int
         ClientPort: int
         UserId: string
-        MaxChatMessageLenght: int
+        MaxChatMessageLength: int
         TcpListener: Socket
         UnixSocketFolder: string
         UnixSocketFilePath: string
@@ -237,7 +237,7 @@ module Chat =
             SecretCode = userSettings.SecretCode
             UserName = userSettings.Name
             UserId = userSettings.UserId.ToString()
-            MaxChatMessageLenght = appSettings.MaxChatMessageLength
+            MaxChatMessageLength = appSettings.MaxChatMessageLength
             TcpListener = Tcp.listener
             UnixSocketListener = UnixSocket.listener unixSocketFilePath
             UnixSocketFolder = unixSocketsFolder
@@ -823,8 +823,8 @@ module Chat =
                     TextBlock.verticalAlignment VerticalAlignment.Bottom
                     TextBlock.horizontalAlignment HorizontalAlignment.Right
                     TextBlock.isHitTestVisible false
-                    TextBlock.opacity <| (float model.MessageInput.Length) / (float model.MaxChatMessageLenght)
-                    TextBlock.text <| (model.MessageInput.Length.ToString()) + $" / {model.MaxChatMessageLenght}"
+                    TextBlock.opacity <| (float model.MessageInput.Length) / (float model.MaxChatMessageLength)
+                    TextBlock.text <| (model.MessageInput.Length.ToString()) + $" / {model.MaxChatMessageLength}"
                 ]
                 
                 Button.create [
