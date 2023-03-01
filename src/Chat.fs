@@ -138,10 +138,10 @@ module Chat =
                     |> List.where (fun o -> o :? SocketException || o :? IOException)
                 if criticalExceptions |> List.isEmpty
                 then
+                    logger.WarnException e $"[packagesSubscription] Failed to handle package from {client.RemoteEndPoint} as safe exception."
+                else
                     logger.WarnException e $"[packagesSubscription] Failed to handle package from {client.RemoteEndPoint} as SocketException or IOException. Stopping handling packages..."
                     dispatch <| DisconnectClient client
-                else
-                    logger.WarnException e $"[packagesSubscription] Failed to handle package from {client.RemoteEndPoint} as safe exception."
             | e ->
                 logger.WarnException e $"[packagesSubscription] Failed to handle package from {client.RemoteEndPoint}"
                 
