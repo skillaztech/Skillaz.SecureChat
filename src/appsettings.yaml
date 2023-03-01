@@ -3,3 +3,4 @@ ListenerTcpPort: 63211
 ClientTcpPort: 63211
 KnownRemotePeers:
   - 10.132.1.10:63211
+  - 10.132.1.5:63211
