@@ -164,4 +164,16 @@
         <Setter Property="Fill" Value="White" />
     </Style>
     
+    <!-- Validation -->
+    
+    <Style Selector="TextBox.invalid">
+        <Setter Property="BorderBrush" Value="Red" />
+    </Style>
+    <Style Selector="TextBox.invalid:focus /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="Red" />
+    </Style>
+    <Style Selector="TextBox.invalid:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="Red"/>
+    </Style>
+    
 </Styles>

@@ -47,6 +47,7 @@ module Chat =
     
     type Model = {
         UserName: string
+        UserNameValidationErrors: string list
         SecretCode: int
         KnownPeers: IPEndPoint list
         ListenerPort: int
@@ -236,6 +237,7 @@ module Chat =
             ClientPort = appSettings.ClientTcpPort
             SecretCode = userSettings.SecretCode
             UserName = userSettings.Name
+            UserNameValidationErrors = []
             UserId = userSettings.UserId.ToString()
             MaxChatMessageLength = appSettings.MaxChatMessageLength
             TcpListener = Tcp.listener
@@ -594,8 +596,15 @@ module Chat =
             { model with SettingsVisible = not model.SettingsVisible }, Cmd.none
         | SecretCodeChanged secretCode ->            
             { model with SecretCode = secretCode }, Cmd.none
-        | UserNameChanged userName ->            
-            { model with UserName = userName }, Cmd.none
+        | UserNameChanged userName ->
+            let validationErrors = []
+            
+            let validationErrors = validationErrors |> List.appendIf (userName.Length < 5) "Слишком маленькое имя пользователя"
+            let validationErrors = validationErrors |> List.appendIf (userName.Length > 64) "Слишком большое имя пользователя"
+            
+            if validationErrors.Length > 0
+            then { model with UserNameValidationErrors = validationErrors }, Cmd.none
+            else { model with UserName = userName; UserNameValidationErrors = validationErrors }, Cmd.none
         
         | SaveUserSettingsToConfig ->
             
@@ -683,18 +692,28 @@ module Chat =
                     Grid.row 3
                     Grid.background "#fafafa"
                     Grid.columnDefinitions "5, Auto, 5, *, 5"
-                    Grid.rowDefinitions "5, Auto, 5, Auto, 5"
+                    Grid.rowDefinitions "5, Auto, 5 Auto, 5, Auto, 5"
                     Grid.isVisible model.SettingsVisible
                     Grid.children [
                         TextBlock.create [
                             TextBlock.column 1
+                            TextBlock.columnSpan 3
                             TextBlock.row 1
+                            TextBlock.verticalAlignment VerticalAlignment.Center
+                            TextBlock.isVisible (model.UserNameValidationErrors.Length > 0)
+                            TextBlock.text <| String.Join("\n", (model.UserNameValidationErrors |> Array.ofList))
+                            TextBlock.textWrapping TextWrapping.Wrap
+                            TextBlock.foreground "Red"
+                        ]
+                        TextBlock.create [
+                            TextBlock.column 1
+                            TextBlock.row 3
                             TextBlock.verticalAlignment VerticalAlignment.Center
                             TextBlock.text $"Код:"
                         ]
                         NumericUpDown.create [
                             NumericUpDown.column 3
-                            NumericUpDown.row 1
+                            NumericUpDown.row 3
                             NumericUpDown.allowSpin false
                             NumericUpDown.showButtonSpinner false
                             NumericUpDown.minimum 100000
@@ -714,24 +733,21 @@ module Chat =
                         
                         TextBlock.create [
                             TextBlock.column 1
-                            TextBlock.row 3
+                            TextBlock.row 5
                             TextBlock.verticalAlignment VerticalAlignment.Center
                             TextBlock.text $"Имя:"
                         ]
                         TextBox.create [
                             TextBox.column 3
-                            TextBox.row 3
+                            TextBox.row 5
                             TextBox.textWrapping TextWrapping.NoWrap
                             TextBox.maxLength 32
                             TextBox.text model.UserName
-                            TextBox.onTextChanged(fun text ->
-                                if text.Length > 4
-                                then UserNameChanged text |> dispatch
-                            )
-                            TextBox.onLostFocus (
-                                fun _ ->
-                                    SaveUserSettingsToConfig |> dispatch
-                            )
+                            TextBox.onTextChanged(fun text -> UserNameChanged text |> dispatch)
+                            TextBox.onLostFocus (fun _ -> SaveUserSettingsToConfig |> dispatch)
+                            if model.UserNameValidationErrors.Length > 0
+                            then
+                                TextBox.classes ["invalid"]
                         ]
                     ]
                 ]
