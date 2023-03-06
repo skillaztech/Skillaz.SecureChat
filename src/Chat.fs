@@ -530,7 +530,7 @@ module Chat =
                         P2PNetwork.send (EnumToValue(PackageType.Message)) ce.Client newMsg
                     with
                     | e ->
-                        logger.DebugException e $"[SendMessage] Failed to send message {msg} package to connection {ce}"
+                        logger.InfoException e $"[SendMessage] Failed to send message {msg} package to connection {ce}"
                 )
                 { model with MessageInput = ""; },  Cmd.ofMsg <| AppendLocalMessage { Message = newMsg; IsMe = true }
             else
