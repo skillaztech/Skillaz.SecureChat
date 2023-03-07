@@ -75,7 +75,8 @@ module Chat =
         | LaunchListenRemoteConnectionsIterationFinished of Result<unit, unit>
         | StartConnectToRemotePeersLoop
         | ConnectToRemotePeersIterationFinished of ConnectedEndpoint list
-        | TryConnectToLocalPeers
+        | StartConnectToLocalPeersLoop
+        | ConnectToLocalPeersIterationFinished of ConnectedEndpoint list
         | PeersConnected of ConnectedEndpoint list
         | ClientConnected of Socket
         | DisconnectClient of Socket
@@ -272,7 +273,7 @@ module Chat =
             Cmd.ofMsg Msg.StartCleanDeadAppsLoop
             Cmd.ofMsg Msg.StartSendIAmAliveLoop
             Cmd.ofMsg Msg.StartConnectToRemotePeersLoop
-            Cmd.ofMsg Msg.TryConnectToLocalPeers
+            Cmd.ofMsg Msg.StartConnectToLocalPeersLoop
             Cmd.ofSub <| connectionsSubscription model.UnixSocketListener
         ]
         
@@ -325,7 +326,7 @@ module Chat =
                 model, cmds
             | Result.Error _ ->
                 model, Cmd.ofMsg <| WaitThenSend (2000, StartLaunchListenRemoteConnectionsLoop)
-        | TryConnectToLocalPeers ->
+        | StartConnectToLocalPeersLoop ->
             let connectToLocalPeers _ = async {
                 if model.TcpListener.IsBound
                 then
@@ -372,7 +373,16 @@ module Chat =
                     
                     return []
             }
-            model, Cmd.OfAsync.perform connectToLocalPeers () PeersConnected
+            model, Cmd.OfAsync.perform connectToLocalPeers () ConnectToLocalPeersIterationFinished
+        | ConnectToLocalPeersIterationFinished peers ->
+            
+            logger.Debug $"[ConnectToLocalPeersIterationFinished] Connecting to local peers {peers} finished. Launching subscriptions..."
+            
+            let msgs = Cmd.batch [
+                Cmd.ofMsg <| PeersConnected peers
+                Cmd.ofMsg <| WaitThenSend (2000, StartConnectToLocalPeersLoop)
+            ]
+            model, msgs
         | StartConnectToRemotePeersLoop ->
             let connectToRemotePeers _ = async {
                 if model.TcpListener.IsBound
