@@ -327,29 +327,29 @@ module Chat =
                 
                 logger.Debug $"[TryConnectToLocalPeers] Searching for local peers with unix socket open in folder {model.UnixSocketFolder}..."
                 
-                let otherNonConnectedUnixSockets =
+                let otherNonConnectedUnixSocketFiles =
                     Directory.GetFiles(model.UnixSocketFolder)
                     |> List.ofArray
                     |> List.where (fun o -> o <> model.UnixSocketFilePath)
                     |> List.where (fun socket -> model.Connections |> List.exists (fun x -> x.ConnectionId = socket) |> not)
                     
-                if otherNonConnectedUnixSockets |> List.length > 0
+                if otherNonConnectedUnixSocketFiles |> List.length > 0
                 then
-                    logger.Debug $"[TryConnectToLocalPeers] Other non-connected unix sockets found. Connecting to {otherNonConnectedUnixSockets}..."
+                    logger.Debug $"[TryConnectToLocalPeers] Other non-connected unix sockets found. Connecting to {otherNonConnectedUnixSocketFiles}..."
                 else
                     logger.Debug $"[TryConnectToLocalPeers] No other non-connected unix sockets found. Skipping..."
                 
                 return
-                    otherNonConnectedUnixSockets
+                    otherNonConnectedUnixSocketFiles
                     |> Array.ofList
-                    |> Array.Parallel.map (fun socket ->
+                    |> Array.Parallel.map (fun socketFile ->
                         
-                        logger.Debug $"[TryConnectToLocalPeers] Connecting to local unix socket {socket}..."
+                        logger.Debug $"[TryConnectToLocalPeers] Connecting to local unix socket {socketFile}..."
                         
                         try
-                            let unixSocketClient = UnixSocket.client socket
+                            let unixSocketClient = UnixSocket.client socketFile
                             let connectionEndpoint = {
-                                ConnectionId = socket
+                                ConnectionId = socketFile
                                 EndPoint = unixSocketClient.RemoteEndPoint
                                 Client = unixSocketClient
                             }
@@ -357,7 +357,7 @@ module Chat =
                         with
                         | e ->
                             
-                            logger.DebugException e $"[TryConnectToLocalPeers] Failed to connect to local unix socket {socket}"
+                            logger.DebugException e $"[TryConnectToLocalPeers] Failed to connect to local unix socket {socketFile}"
                             
                             None
                     )
@@ -479,17 +479,19 @@ module Chat =
             { model with Connections = connectedEndpoints }, Cmd.ofMsg <| WaitThenSend (1000, StartSendIAmAliveLoop)
         | AlivePackageReceived (msg, client) ->
             
-            logger.Debug $"[AlivePackageReceived] Alive package {msg} received from {client}"
+            logger.Debug $"[AlivePackageReceived] Alive package {msg} received from {client.RemoteEndPoint}"
             
-            match msg.RetranslationInfo.RetranslatedBy |> List.contains model.UserId with
-            | false ->
-                
+            let retranslatedByCurrentInstance = msg.RetranslationInfo.RetranslatedBy |> List.contains model.UserId
+            
+            if retranslatedByCurrentInstance
+            then
+                model, Cmd.none
+            else
                 logger.Debug $"[AlivePackageReceived] I am alive package {msg} not being retranslated by this app. Retranslating..."
                 
                 let apps =
-                    match model.SecretCode = msg.SecretCode && msg.UserId <> model.UserId with
-                    | true ->
-                        
+                    if model.SecretCode = msg.SecretCode && msg.UserId <> model.UserId
+                    then
                         logger.Debug $"[AlivePackageReceived] I am alive package {msg} for me. Updating connection lifetime..."
                         
                         model.ConnectedUsers
@@ -497,11 +499,9 @@ module Chat =
                                (fun o -> o.UserId = msg.UserId)
                                { AppName = msg.MessageSender; UserId = msg.UserId; ConnectedTill = DateTime.Now.AddSeconds(4) }
                                
-                    | false -> model.ConnectedUsers
-            
-                { model with ConnectedUsers = apps }, Cmd.ofMsg <| RetranslateAlivePackage msg
-            | true ->
-                model, Cmd.none
+                    else
+                        model.ConnectedUsers
+                { model with ConnectedUsers = apps }, Cmd.ofMsg <| RetranslateAlivePackage msg                
         | RetranslateAlivePackage msg ->
             let msg = { msg with RetranslationInfo = { msg.RetranslationInfo with RetranslatedBy = model.UserId :: msg.RetranslationInfo.RetranslatedBy } }
             model.Connections
