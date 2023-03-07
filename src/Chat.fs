@@ -66,6 +66,7 @@ module Chat =
         AppSettingsFilePath: string
         UserSettingsFilePath: string
         ChatScrollViewOffset: float
+        MessagesListHashSet: Set<int>
     }
         
     type Msg =
@@ -248,6 +249,7 @@ module Chat =
             ConnectedUsers = []
             MessageInput = ""
             MessagesList = []
+            MessagesListHashSet = Set.empty
             SettingsVisible = false
             AppSettingsFilePath = appSettingsFilePath
             UserSettingsFilePath = userSettingsFilePath
@@ -539,14 +541,17 @@ module Chat =
             
             logger.Debug $"[RemoteChatMessageReceived] Chat message {msg} package received by {client.RemoteEndPoint}"
             
-            match msg.RetranslationInfo.RetranslatedBy |> List.contains model.UserId with
-            | false ->
-                
+            let retranslatedByCurrentInstance = msg.RetranslationInfo.RetranslatedBy |> List.contains model.UserId
+            let receivedMessageAlreadyPresentsHere = model.MessagesListHashSet |> Set.contains (msg.GetHashCode())
+            
+            if retranslatedByCurrentInstance || receivedMessageAlreadyPresentsHere
+            then
+                model, Cmd.none
+            else
                 logger.Debug $"[RemoteChatMessageReceived] Chat message {msg} by {client.RemoteEndPoint} not being retranslated by this app. Retranslating..."
                 
-                match msg.SecretCode = model.SecretCode with
-                | true ->
-                    
+                if msg.SecretCode = model.SecretCode
+                then
                     logger.Info $"[RemoteChatMessageReceived] Chat message {msg} for me by {client.RemoteEndPoint}. Append message to messages list..."
                         
                     let cmds = [
@@ -554,10 +559,8 @@ module Chat =
                         Cmd.ofMsg <| RetranslateChatMessage msg
                     ]
                     model, Cmd.batch cmds
-                | false ->
+                else
                     model, Cmd.ofMsg <| RetranslateChatMessage msg
-            | true ->
-                model, Cmd.none
         | RetranslateChatMessage msg ->
             let msg = { msg with RetranslationInfo = { msg.RetranslationInfo with RetranslatedBy = model.UserId :: msg.RetranslationInfo.RetranslatedBy } }
             model.Connections
@@ -587,7 +590,13 @@ module Chat =
         | AppendLocalMessage m ->
             let msg = WaitThenSend (0, ScrollChatToEnd) // Delay 0 because rendering pipeline can't update vertical offset correctly without async message between frames
             let verticalOffset = Double.MaxValue // Vertical offset must be different between frames because of caching inside Avalonia.FuncUI library
-            { model with MessagesList = model.MessagesList @ [m]; ChatScrollViewOffset = verticalOffset }, Cmd.ofMsg msg
+            let model = {
+                model with
+                    MessagesList = model.MessagesList @ [m]
+                    MessagesListHashSet = model.MessagesListHashSet |> Set.add (m.GetHashCode())
+                    ChatScrollViewOffset = verticalOffset
+            }
+            model, Cmd.ofMsg msg
         | ScrollChatToEnd ->
             { model with ChatScrollViewOffset = Double.PositiveInfinity }, Cmd.none
         | TextChanged t ->
