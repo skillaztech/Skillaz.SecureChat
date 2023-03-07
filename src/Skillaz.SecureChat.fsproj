@@ -8,9 +8,9 @@
         <IsPackable>false</IsPackable>
         <Company>Skillaz</Company>
         <Product>Skillaz.SecureChat</Product>
-        <AssemblyVersion>1.0.2</AssemblyVersion>
-        <FileVersion>1.0.2</FileVersion>
-        <Version>1.0.2</Version>
+        <AssemblyVersion>1.0.3</AssemblyVersion>
+        <FileVersion>1.0.3</FileVersion>
+        <Version>1.0.3</Version>
         <NeutralLanguage>ru</NeutralLanguage>
         <ApplicationIcon>..\logo.ico</ApplicationIcon>
         <UseAppHost>true</UseAppHost>
