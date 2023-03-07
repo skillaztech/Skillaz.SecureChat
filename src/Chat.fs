@@ -542,7 +542,7 @@ module Chat =
             logger.Debug $"[RemoteChatMessageReceived] Chat message {msg} package received by {client.RemoteEndPoint}"
             
             let retranslatedByCurrentInstance = msg.RetranslationInfo.RetranslatedBy |> List.contains model.UserId
-            let receivedMessageAlreadyPresentsHere = model.MessagesListHashSet |> Set.contains (msg.GetHashCode())
+            let receivedMessageAlreadyPresentsHere = model.MessagesListHashSet |> Set.contains (msg.GetHalfHashCode())
             
             if retranslatedByCurrentInstance || receivedMessageAlreadyPresentsHere
             then
@@ -593,7 +593,7 @@ module Chat =
             let model = {
                 model with
                     MessagesList = model.MessagesList @ [m]
-                    MessagesListHashSet = model.MessagesListHashSet |> Set.add (m.GetHashCode())
+                    MessagesListHashSet = model.MessagesListHashSet |> Set.add (m.Message.GetHalfHashCode())
                     ChatScrollViewOffset = verticalOffset
             }
             model, Cmd.ofMsg msg
