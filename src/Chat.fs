@@ -436,7 +436,7 @@ module Chat =
         | DisconnectClient socket ->
             let connections =
                 model.Connections
-                |> List.where (fun o -> o.ConnectionId <> socket.RemoteEndPoint.ToString())
+                |> List.where (fun o -> socket.RemoteEndPoint <> null && o.ConnectionId <> socket.RemoteEndPoint.ToString())
                 
             socket.Dispose()
             
