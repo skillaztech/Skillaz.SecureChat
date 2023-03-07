@@ -9,9 +9,11 @@ open System.Threading.Tasks
 
 module P2PNetwork =
     
+    let defaultSocketTimeoutMs = 500
+    
     let connectSocket (socket:Socket) (endpoint:EndPoint) =
         let connectTask = socket.ConnectAsync(endpoint)
-        let cancelConnectByTimeoutTask = Task.Delay 500
+        let cancelConnectByTimeoutTask = Task.Delay defaultSocketTimeoutMs
         let timeoutTask = Task.WhenAny [| connectTask; cancelConnectByTimeoutTask |]
         
         timeoutTask |> Async.AwaitTask |> Async.RunSynchronously |> Async.AwaitTask |> Async.RunSynchronously
@@ -23,6 +25,9 @@ module P2PNetwork =
         
     let rec listenSocket (socket:Socket) invoke = async {
         use! tcpClient = socket.AcceptAsync() |> Async.AwaitTask
+        
+        tcpClient.SendTimeout <- defaultSocketTimeoutMs
+        
         invoke tcpClient
         do! listenSocket socket invoke
     }

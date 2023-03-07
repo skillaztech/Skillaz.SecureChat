@@ -33,6 +33,7 @@ module UnixSocket =
         File.Delete(path)
         
         let socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP)
+        socket.SendTimeout <- defaultSocketTimeoutMs
         socket.Bind(UnixDomainSocketEndPoint(path))
         
         if isUnix
@@ -50,4 +51,5 @@ module UnixSocket =
         
     let client path =
         let socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP)
+        socket.SendTimeout <- defaultSocketTimeoutMs
         connectSocket socket <| UnixDomainSocketEndPoint(path)
