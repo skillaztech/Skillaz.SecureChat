@@ -66,6 +66,7 @@ module Chat =
         AppSettingsFilePath: string
         UserSettingsFilePath: string
         ChatScrollViewOffset: float
+        MessagesListHashSet: Set<int>
     }
         
     type Msg =
@@ -248,6 +249,7 @@ module Chat =
             ConnectedUsers = []
             MessageInput = ""
             MessagesList = []
+            MessagesListHashSet = Set.empty
             SettingsVisible = false
             AppSettingsFilePath = appSettingsFilePath
             UserSettingsFilePath = userSettingsFilePath
@@ -365,41 +367,44 @@ module Chat =
             model, Cmd.OfAsync.perform connectToLocalPeers () PeersConnected
         | StartConnectToRemotePeersLoop ->
             let connectToRemotePeers _ = async {
-                
-                logger.Debug $"[StartConnectToRemotePeersLoop] Defining non-connected known peers..."
-                
-                let nonConnectedRemotePeers =
-                    model.KnownPeers
-                    |> List.where (fun ep -> model.Connections |> List.exists (fun x -> x.ConnectionId = ep.ToString()) |> not)
+                if model.TcpListener.IsBound
+                then
+                    logger.Debug $"[StartConnectToRemotePeersLoop] Defining non-connected known peers..."
                     
-                if nonConnectedRemotePeers |> List.length > 0
-                then logger.Debug $"[StartConnectToRemotePeersLoop] Non-connected known peers found {nonConnectedRemotePeers}. Connecting..."
-                else logger.Debug $"[StartConnectToRemotePeersLoop] All known peers already connected. Skipping..."
-                
-                return
-                    nonConnectedRemotePeers
-                    |> Array.ofList
-                    |> Array.Parallel.map (fun ep ->
-                        let socket = Tcp.client model.ClientPort
+                    let nonConnectedRemotePeers =
+                        model.KnownPeers
+                        |> List.where (fun ep -> model.Connections |> List.exists (fun x -> x.ConnectionId = ep.ToString()) |> not)
                         
-                        logger.Debug $"[StartConnectToRemotePeersLoop] Connecting to remote tcp endpoint {ep} from {socket.LocalEndPoint}..."
-                        
-                        try
-                            let connectedSocket = Tcp.connectSocket ep.Address ep.Port socket
-                            let connectionEndpoint = {
-                                ConnectionId = ep.ToString()
-                                EndPoint = ep
-                                Client = connectedSocket
-                            }
-                            Some connectionEndpoint
-                        with
-                        | e ->
-                            logger.DebugException e $"[StartConnectToRemotePeersLoop] Connection to remote tcp endpoint {ep} failed"
-                            socket.Dispose()
-                            None
-                    )
-                    |> Array.choose id
-                    |> List.ofArray
+                    if nonConnectedRemotePeers |> List.length > 0
+                    then logger.Debug $"[StartConnectToRemotePeersLoop] Non-connected known peers found {nonConnectedRemotePeers}. Connecting..."
+                    else logger.Debug $"[StartConnectToRemotePeersLoop] All known peers already connected. Skipping..."
+                    
+                    return
+                        nonConnectedRemotePeers
+                        |> Array.ofList
+                        |> Array.Parallel.map (fun ep ->
+                            let socket = Tcp.client model.ClientPort
+                            
+                            logger.Debug $"[StartConnectToRemotePeersLoop] Connecting to remote tcp endpoint {ep} from {socket.LocalEndPoint}..."
+                            
+                            try
+                                let connectedSocket = Tcp.connectSocket ep.Address ep.Port socket
+                                let connectionEndpoint = {
+                                    ConnectionId = ep.ToString()
+                                    EndPoint = ep
+                                    Client = connectedSocket
+                                }
+                                Some connectionEndpoint
+                            with
+                            | e ->
+                                logger.DebugException e $"[StartConnectToRemotePeersLoop] Connection to remote tcp endpoint {ep} failed"
+                                socket.Dispose()
+                                None
+                        )
+                        |> Array.choose id
+                        |> List.ofArray
+                else
+                    return []
             }
             
             model, Cmd.OfAsync.perform connectToRemotePeers () ConnectToRemotePeersIterationFinished
@@ -434,7 +439,7 @@ module Chat =
         | DisconnectClient socket ->
             let connections =
                 model.Connections
-                |> List.where (fun o -> o.ConnectionId <> socket.RemoteEndPoint.ToString())
+                |> List.where (fun o -> socket.RemoteEndPoint <> null && o.ConnectionId <> socket.RemoteEndPoint.ToString())
                 
             socket.Dispose()
             
@@ -539,14 +544,17 @@ module Chat =
             
             logger.Debug $"[RemoteChatMessageReceived] Chat message {msg} package received by {client.RemoteEndPoint}"
             
-            match msg.RetranslationInfo.RetranslatedBy |> List.contains model.UserId with
-            | false ->
-                
+            let retranslatedByCurrentInstance = msg.RetranslationInfo.RetranslatedBy |> List.contains model.UserId
+            let receivedMessageAlreadyPresentsHere = model.MessagesListHashSet |> Set.contains (msg.GetHalfHashCode())
+            
+            if retranslatedByCurrentInstance || receivedMessageAlreadyPresentsHere
+            then
+                model, Cmd.none
+            else
                 logger.Debug $"[RemoteChatMessageReceived] Chat message {msg} by {client.RemoteEndPoint} not being retranslated by this app. Retranslating..."
                 
-                match msg.SecretCode = model.SecretCode with
-                | true ->
-                    
+                if msg.SecretCode = model.SecretCode
+                then
                     logger.Info $"[RemoteChatMessageReceived] Chat message {msg} for me by {client.RemoteEndPoint}. Append message to messages list..."
                         
                     let cmds = [
@@ -554,10 +562,8 @@ module Chat =
                         Cmd.ofMsg <| RetranslateChatMessage msg
                     ]
                     model, Cmd.batch cmds
-                | false ->
+                else
                     model, Cmd.ofMsg <| RetranslateChatMessage msg
-            | true ->
-                model, Cmd.none
         | RetranslateChatMessage msg ->
             let msg = { msg with RetranslationInfo = { msg.RetranslationInfo with RetranslatedBy = model.UserId :: msg.RetranslationInfo.RetranslatedBy } }
             model.Connections
@@ -587,7 +593,13 @@ module Chat =
         | AppendLocalMessage m ->
             let msg = WaitThenSend (0, ScrollChatToEnd) // Delay 0 because rendering pipeline can't update vertical offset correctly without async message between frames
             let verticalOffset = Double.MaxValue // Vertical offset must be different between frames because of caching inside Avalonia.FuncUI library
-            { model with MessagesList = model.MessagesList @ [m]; ChatScrollViewOffset = verticalOffset }, Cmd.ofMsg msg
+            let model = {
+                model with
+                    MessagesList = model.MessagesList @ [m]
+                    MessagesListHashSet = model.MessagesListHashSet |> Set.add (m.Message.GetHalfHashCode())
+                    ChatScrollViewOffset = verticalOffset
+            }
+            model, Cmd.ofMsg msg
         | ScrollChatToEnd ->
             { model with ChatScrollViewOffset = Double.PositiveInfinity }, Cmd.none
         | TextChanged t ->

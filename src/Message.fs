@@ -14,12 +14,15 @@ module Message =
         RetranslationInfo: RetranslationInfo
     }
     
-    type ChatMessage = {
+    type ChatMessage =
+        {
         MessageText: string
         MessageSender: string
         DateTime: DateTime
         SecretCode: int
         UserId: string
         RetranslationInfo: RetranslationInfo
-    }
+        }
+        
+        member this.GetHalfHashCode() = hash <| this.MessageText + this.UserId + this.DateTime.Ticks.ToString() + this.SecretCode.ToString()
 
