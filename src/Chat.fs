@@ -367,41 +367,44 @@ module Chat =
             model, Cmd.OfAsync.perform connectToLocalPeers () PeersConnected
         | StartConnectToRemotePeersLoop ->
             let connectToRemotePeers _ = async {
-                
-                logger.Debug $"[StartConnectToRemotePeersLoop] Defining non-connected known peers..."
-                
-                let nonConnectedRemotePeers =
-                    model.KnownPeers
-                    |> List.where (fun ep -> model.Connections |> List.exists (fun x -> x.ConnectionId = ep.ToString()) |> not)
+                if model.TcpListener.IsBound
+                then
+                    logger.Debug $"[StartConnectToRemotePeersLoop] Defining non-connected known peers..."
                     
-                if nonConnectedRemotePeers |> List.length > 0
-                then logger.Debug $"[StartConnectToRemotePeersLoop] Non-connected known peers found {nonConnectedRemotePeers}. Connecting..."
-                else logger.Debug $"[StartConnectToRemotePeersLoop] All known peers already connected. Skipping..."
-                
-                return
-                    nonConnectedRemotePeers
-                    |> Array.ofList
-                    |> Array.Parallel.map (fun ep ->
-                        let socket = Tcp.client model.ClientPort
+                    let nonConnectedRemotePeers =
+                        model.KnownPeers
+                        |> List.where (fun ep -> model.Connections |> List.exists (fun x -> x.ConnectionId = ep.ToString()) |> not)
                         
-                        logger.Debug $"[StartConnectToRemotePeersLoop] Connecting to remote tcp endpoint {ep} from {socket.LocalEndPoint}..."
-                        
-                        try
-                            let connectedSocket = Tcp.connectSocket ep.Address ep.Port socket
-                            let connectionEndpoint = {
-                                ConnectionId = ep.ToString()
-                                EndPoint = ep
-                                Client = connectedSocket
-                            }
-                            Some connectionEndpoint
-                        with
-                        | e ->
-                            logger.DebugException e $"[StartConnectToRemotePeersLoop] Connection to remote tcp endpoint {ep} failed"
-                            socket.Dispose()
-                            None
-                    )
-                    |> Array.choose id
-                    |> List.ofArray
+                    if nonConnectedRemotePeers |> List.length > 0
+                    then logger.Debug $"[StartConnectToRemotePeersLoop] Non-connected known peers found {nonConnectedRemotePeers}. Connecting..."
+                    else logger.Debug $"[StartConnectToRemotePeersLoop] All known peers already connected. Skipping..."
+                    
+                    return
+                        nonConnectedRemotePeers
+                        |> Array.ofList
+                        |> Array.Parallel.map (fun ep ->
+                            let socket = Tcp.client model.ClientPort
+                            
+                            logger.Debug $"[StartConnectToRemotePeersLoop] Connecting to remote tcp endpoint {ep} from {socket.LocalEndPoint}..."
+                            
+                            try
+                                let connectedSocket = Tcp.connectSocket ep.Address ep.Port socket
+                                let connectionEndpoint = {
+                                    ConnectionId = ep.ToString()
+                                    EndPoint = ep
+                                    Client = connectedSocket
+                                }
+                                Some connectionEndpoint
+                            with
+                            | e ->
+                                logger.DebugException e $"[StartConnectToRemotePeersLoop] Connection to remote tcp endpoint {ep} failed"
+                                socket.Dispose()
+                                None
+                        )
+                        |> Array.choose id
+                        |> List.ofArray
+                else
+                    return []
             }
             
             model, Cmd.OfAsync.perform connectToRemotePeers () ConnectToRemotePeersIterationFinished
