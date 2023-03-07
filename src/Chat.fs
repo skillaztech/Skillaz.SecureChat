@@ -327,45 +327,50 @@ module Chat =
                 model, Cmd.ofMsg <| WaitThenSend (2000, StartLaunchListenRemoteConnectionsLoop)
         | TryConnectToLocalPeers ->
             let connectToLocalPeers _ = async {
-                
-                logger.Debug $"[TryConnectToLocalPeers] Searching for local peers with unix socket open in folder {model.UnixSocketFolder}..."
-                
-                let otherNonConnectedUnixSocketFiles =
-                    Directory.GetFiles(model.UnixSocketFolder)
-                    |> List.ofArray
-                    |> List.where (fun o -> o <> model.UnixSocketFilePath)
-                    |> List.where (fun socket -> model.Connections |> List.exists (fun x -> x.ConnectionId = socket) |> not)
-                    
-                if otherNonConnectedUnixSocketFiles |> List.length > 0
+                if model.TcpListener.IsBound
                 then
-                    logger.Debug $"[TryConnectToLocalPeers] Other non-connected unix sockets found. Connecting to {otherNonConnectedUnixSocketFiles}..."
+                    logger.Debug $"[TryConnectToLocalPeers] Searching for local peers with unix socket open in folder {model.UnixSocketFolder}..."
+                    
+                    let otherNonConnectedUnixSocketFiles =
+                        Directory.GetFiles(model.UnixSocketFolder)
+                        |> List.ofArray
+                        |> List.where (fun o -> o <> model.UnixSocketFilePath)
+                        |> List.where (fun socket -> model.Connections |> List.exists (fun x -> x.ConnectionId = socket) |> not)
+                        
+                    if otherNonConnectedUnixSocketFiles |> List.length > 0
+                    then
+                        logger.Debug $"[TryConnectToLocalPeers] Other non-connected unix sockets found. Connecting to {otherNonConnectedUnixSocketFiles}..."
+                    else
+                        logger.Debug $"[TryConnectToLocalPeers] No other non-connected unix sockets found. Skipping..."
+                    
+                    return
+                        otherNonConnectedUnixSocketFiles
+                        |> Array.ofList
+                        |> Array.Parallel.map (fun socketFile ->
+                            
+                            logger.Debug $"[TryConnectToLocalPeers] Connecting to local unix socket {socketFile}..."
+                            
+                            try
+                                let unixSocketClient = UnixSocket.client socketFile
+                                let connectionEndpoint = {
+                                    ConnectionId = socketFile
+                                    EndPoint = unixSocketClient.RemoteEndPoint
+                                    Client = unixSocketClient
+                                }
+                                Some connectionEndpoint
+                            with
+                            | e ->
+                                
+                                logger.DebugException e $"[TryConnectToLocalPeers] Failed to connect to local unix socket {socketFile}"
+                                
+                                None
+                        )
+                        |> Array.choose id
+                        |> List.ofArray
                 else
-                    logger.Debug $"[TryConnectToLocalPeers] No other non-connected unix sockets found. Skipping..."
-                
-                return
-                    otherNonConnectedUnixSocketFiles
-                    |> Array.ofList
-                    |> Array.Parallel.map (fun socketFile ->
-                        
-                        logger.Debug $"[TryConnectToLocalPeers] Connecting to local unix socket {socketFile}..."
-                        
-                        try
-                            let unixSocketClient = UnixSocket.client socketFile
-                            let connectionEndpoint = {
-                                ConnectionId = socketFile
-                                EndPoint = unixSocketClient.RemoteEndPoint
-                                Client = unixSocketClient
-                            }
-                            Some connectionEndpoint
-                        with
-                        | e ->
-                            
-                            logger.DebugException e $"[TryConnectToLocalPeers] Failed to connect to local unix socket {socketFile}"
-                            
-                            None
-                    )
-                    |> Array.choose id
-                    |> List.ofArray
+                    logger.Debug $"[TryConnectToLocalPeers] Current app instance does not need to connect to local peers because tcp listener not bounded."
+                    
+                    return []
             }
             model, Cmd.OfAsync.perform connectToLocalPeers () PeersConnected
         | StartConnectToRemotePeersLoop ->
@@ -407,6 +412,8 @@ module Chat =
                         |> Array.choose id
                         |> List.ofArray
                 else
+                    logger.Debug $"[StartConnectToRemotePeersLoop] Current app instance does not need to connect to remote peers because tcp listener not bounded."
+                    
                     return []
             }
             
