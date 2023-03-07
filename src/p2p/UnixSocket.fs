@@ -49,7 +49,10 @@ module UnixSocket =
 
         socket
         
-    let client path =
+    let client =
         let socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP)
         socket.SendTimeout <- defaultSocketTimeoutMs
+        socket
+        
+    let connectSocket socket path  =
         connectSocket socket <| UnixDomainSocketEndPoint(path)

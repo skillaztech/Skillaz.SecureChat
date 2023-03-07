@@ -348,11 +348,11 @@ module Chat =
                         otherNonConnectedUnixSocketFiles
                         |> Array.ofList
                         |> Array.Parallel.map (fun socketFile ->
-                            
+                            let socket = UnixSocket.client
                             logger.Debug $"[TryConnectToLocalPeers] Connecting to local unix socket {socketFile}..."
                             
                             try
-                                let unixSocketClient = UnixSocket.client socketFile
+                                let unixSocketClient = UnixSocket.connectSocket socket socketFile
                                 let connectionEndpoint = {
                                     ConnectionId = socketFile
                                     EndPoint = unixSocketClient.RemoteEndPoint
@@ -362,7 +362,9 @@ module Chat =
                             with
                             | e ->
                                 
-                                logger.DebugException e $"[TryConnectToLocalPeers] Failed to connect to local unix socket {socketFile}"
+                                logger.DebugException e $"[TryConnectToLocalPeers] Failed to connect to local unix socket {socketFile}. Disposing socket..."
+                                
+                                socket.Dispose()
                                 
                                 None
                         )
