@@ -279,6 +279,9 @@ module Chat =
         model, cmd
     
     let update msg model =
+        
+        logger.Trace $"[update] Handling message {msg} with model state {model}..."
+        
         match msg with
         | WaitThenSend (msToWait, msg) ->
             let waitTask ms = async {
