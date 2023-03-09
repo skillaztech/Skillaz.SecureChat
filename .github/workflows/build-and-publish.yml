@@ -1,0 +1,190 @@
+name: Build and Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  DOTNET_VERSION: '6.0'
+
+jobs:
+  bump_version_to_tag_version:
+    name: Bump current version to tag version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Parse tag semver
+        id: semver_parser
+        uses: booxmedialtd/ws-action-parse-semver@v1
+        with:
+          input_string: ${{ github.ref_name }}
+          version_extractor_regex: '\/v(.*)$'
+
+      - name: Update versions inside fsproj
+        uses: SiqiLu/dotnet-bump-version@2.1.0
+        with:
+          version_files: src/Skillaz.SecureChat.fsproj
+          version_mask: 0.0.0.0
+          version_overwrite: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.*
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Update versions inside Info.plist
+        uses: damienaicheh/update-ios-version-info-plist-action@v1.0.0
+        with:
+          info-plist-path: "src/osx-installer/SSC.app/Contents/Info.plist"
+          bundle-short-version-string: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}
+          bundle-version: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}
+          
+      - name: Commit Info.plist
+        run: |
+          git config --global user.name '${{ github.triggering_actor }}'
+          git config --global user.email '${{ github.triggering_actor }}@users.noreply.github.com'
+          git commit -am "Update Info.plist bundle version"
+          git push
+  
+  build_and_publish_windows:
+    name: Build and Deploy (win-x64)
+    runs-on: windows-latest
+    needs: [bump_version_to_tag_version]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build binaries
+        run: dotnet publish -c Release -r win-x64 --self-contained
+        
+      - name: Build .exe installer
+        uses: callebstrom/inno-setup-cli-action@6
+        with:
+          file: src/windows-installer/installer.iss
+        
+      - name: Publish .exe installer
+        uses: actions/upload-artifact@v3
+        with:
+          name: win-x64-installer
+          path: src/windows-installer/Output/*.exe
+          retention-days: 1
+      
+      
+  build_and_publish_linux:
+    name: Build and Deploy (ubuntu-x64)
+    runs-on: ubuntu-latest
+    needs: [bump_version_to_tag_version]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          
+      - name: Install tools
+        run: |
+          echo "Install dotnet-deb tool..."
+          dotnet tool install --global dotnet-deb
+          echo "dotnet-deb tool installed. Preparing solution..."
+          dotnet deb install
+
+      - name: Build .deb installer
+        run: dotnet deb -r ubuntu-x64 -c Release
+        
+      - name: Calculate checksum
+        run: sha512sum ./*.deb
+
+      - name: Publish .deb installer
+        uses: actions/upload-artifact@v3
+        with:
+          name: ubuntu-x64-installer
+          path: ./*.deb
+          retention-days: 1
+      
+  build_and_publish_macos:
+    name: Build and Deploy (osx-x64)
+    runs-on: macos-latest
+    needs: [bump_version_to_tag_version]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Parse tag semver
+        id: semver_parser
+        uses: booxmedialtd/ws-action-parse-semver@v1
+        with:
+          input_string: ${{ github.ref_name }}
+          version_extractor_regex: '\/v(.*)$'
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install tools
+        run: brew install create-dmg
+
+      - name: Build binaries
+        run: dotnet publish -c Release -r osx-x64 --self-contained
+
+      - name: Move binaries to package
+        run: |
+          echo "Creating app binaries directory..."
+          mkdir -p src/osx-installer/SSC.app/Contents/MacOS/osx-x64
+          echo "Move binaries into created directory..."
+          mv src/bin/Release/net${{ env.DOTNET_VERSION }}/osx-x64/* src/osx-installer/SSC.app/Contents/MacOS/osx-x64
+
+      - name: Set .app file as executable
+        run: |
+          echo "Settings app package as executable..."
+          chmod +x src/osx-installer/SSC.app/Contents/MacOS/Skillaz.SecureChat
+          
+      - name: Build .dmg installer
+        run: create-dmg \
+          --volname "Skillaz Secure Chat" \
+          --volicon "src/osx-installer/SSC.app/Contents/Resources/logo.icns" \
+          --icon "SSC.app" 30 60 \
+          --hide-extension "SSC.app" \
+          --app-drop-link 280 60 \
+          --no-internet-enable \
+          "Skillaz.SecureChat.${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.osx-x64.dmg" \
+          "src/osx-installer/SSC.app"
+        
+      - name: Set installer icon
+        run: src/osx-installer/set-ex-icon src/osx-installer/SSC.app/Contents/Resources/logo.icns Skillaz.SecureChat.${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.osx-x64.dmg
+
+      - name: Publish .dmg installer
+        uses: actions/upload-artifact@v3
+        with:
+          name: osx-x64-installer
+          path: ./*.dmg
+          retention-days: 1
+      
+  generate_new_release:
+    name: Generate new release
+    runs-on: ubuntu-latest
+    needs: [build_and_publish_windows, build_and_publish_linux, build_and_publish_macos]
+    steps:
+      - name: Download installers
+        uses: actions/download-artifact@v3
+        with:
+          path: installers/
+
+      - name: Calculate checksums
+        run: | 
+          sha512sum **/*.exe
+          sha512sum **/*.deb
+          sha512sum **/*.dmg
+
+      - name: Upload release artifacts to latest release
+        uses: alexellis/upload-assets@0.4.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          asset_paths: [installers/*]
