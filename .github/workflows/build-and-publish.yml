@@ -172,6 +172,7 @@ jobs:
 
       - name: Calculate checksums
         run: | 
+          ls -R
           sha512sum installers/**/*.zip
 
       - name: Upload release artifacts to latest release
