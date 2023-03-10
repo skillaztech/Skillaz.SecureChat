@@ -20,13 +20,10 @@ jobs:
         run: |
           echo "Ref name: ${{ github.ref_name }}"
           echo "Triggering actor: ${{ github.triggering_actor }}"
-        
-      - name: Parse tag semver
+
+      - name: Parse version from tag
         id: semver_parser
-        uses: booxmedialtd/ws-action-parse-semver@master
-        with:
-          input_string: ${{ github.ref_name }}
-#          version_extractor_regex: '(?!v)(.*)$'
+        uses: release-kit/semver@v1
 
       - name: Update versions inside fsproj
         uses: SiqiLu/dotnet-bump-version@master
