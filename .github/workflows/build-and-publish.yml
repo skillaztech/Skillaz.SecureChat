@@ -24,7 +24,7 @@ jobs:
           version_extractor_regex: '\/v(.*)$'
 
       - name: Update versions inside fsproj
-        uses: SiqiLu/dotnet-bump-version@2.1.0
+        uses: SiqiLu/dotnet-bump-version@latest
         with:
           version_files: src/Skillaz.SecureChat.fsproj
           version_mask: 0.0.0.0
