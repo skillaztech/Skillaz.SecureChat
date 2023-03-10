@@ -187,4 +187,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          asset_paths: [installers/*]
+          asset_paths: '["installers/*"]'
