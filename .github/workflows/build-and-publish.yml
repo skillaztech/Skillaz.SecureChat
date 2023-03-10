@@ -69,9 +69,9 @@ jobs:
         run: dotnet publish -c Release -r win-x64 --self-contained
         
       - name: Build .exe installer
-        uses: callebstrom/inno-setup-cli@master
+        uses: nadeemjazmawe/inno-setup-action-cli@master
         with:
-          file: src/windows-installer/installer.iss
+          filepath: src/windows-installer/installer.iss
         
       - name: Publish .exe installer
         uses: actions/upload-artifact@v3
@@ -149,15 +149,7 @@ jobs:
           chmod +x src/osx-installer/SSC.app/Contents/MacOS/osx-x64/Skillaz.SecureChat
           
       - name: Build .dmg installer
-        run: create-dmg \
-          --volname "Skillaz Secure Chat" \
-          --volicon "src/osx-installer/SSC.app/Contents/Resources/logo.icns" \
-          --icon "SSC.app" 30 60 \
-          --hide-extension "SSC.app" \
-          --app-drop-link 280 60 \
-          --no-internet-enable \
-          "Skillaz.SecureChat.${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.osx-x64.dmg" \
-          "src/osx-installer/SSC.app"
+        run: create-dmg --volname "Skillaz Secure Chat" --volicon "src/osx-installer/SSC.app/Contents/Resources/logo.icns" --icon "SSC.app" 30 60 --hide-extension "SSC.app" --app-drop-link 280 60 --no-internet-enable "Skillaz.SecureChat.${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.osx-x64.dmg" "src/osx-installer/SSC.app"
         
       - name: Set installer icon
         run: src/osx-installer/set-ex-icon src/osx-installer/SSC.app/Contents/Resources/logo.icns Skillaz.SecureChat.${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.osx-x64.dmg
