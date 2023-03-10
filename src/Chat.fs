@@ -77,9 +77,8 @@ module Chat =
         | ConnectToRemotePeersIterationFinished of ConnectedEndpoint list
         | StartConnectToLocalPeersLoop
         | ConnectToLocalPeersIterationFinished of ConnectedEndpoint list
-        | PeersConnected of ConnectedEndpoint list
-        | ClientConnected of Socket
-        | DisconnectClient of Socket
+        | ClientsConnected of ConnectedEndpoint list
+        | ClientDisconnected of Socket
         | StartCleanDeadAppsLoop
         | DeadAppsCleanIterationFinished of ConnectedApp list
         | StartSendIAmAliveLoop
@@ -98,8 +97,16 @@ module Chat =
         | ScrollChatToEnd
         
     let connectionsSubscription listener dispatch =
-        let handle socket =
-            Msg.ClientConnected socket |> dispatch
+        let handle (socket:Socket) =
+            logger.Info $"[connectionsSubscription] New connection entering listener {socket.LocalEndPoint} from {socket.RemoteEndPoint}..."
+            
+            let connectedEndpoint = {
+                ConnectionId = socket.RemoteEndPoint.ToString()
+                EndPoint = socket.RemoteEndPoint
+                Client = socket
+            }
+            
+            Msg.ClientsConnected [connectedEndpoint] |> dispatch
         P2PNetwork.listenSocket listener handle |> Async.Start
 
     type Exception with
@@ -130,10 +137,10 @@ module Chat =
             with
             | :? SocketException as e ->
                 logger.WarnException e $"[packagesSubscription] Failed to handle package from {client.RemoteEndPoint} as SocketException. Stopping handling packages..."
-                dispatch <| DisconnectClient client
+                dispatch <| ClientDisconnected client
             | :? IOException as e ->
                 logger.WarnException e $"[packagesSubscription] Failed to handle package from {client.RemoteEndPoint} as IOException. Stopping handling packages..."
-                dispatch <| DisconnectClient client
+                dispatch <| ClientDisconnected client
             | :? AggregateException as e ->
                 let criticalExceptions =
                     e.InnerExceptions
@@ -144,7 +151,7 @@ module Chat =
                     logger.WarnException e $"[packagesSubscription] Failed to handle package from {client.RemoteEndPoint} as safe exception."
                 else
                     logger.WarnException e $"[packagesSubscription] Failed to handle package from {client.RemoteEndPoint} as SocketException or IOException. Stopping handling packages..."
-                    dispatch <| DisconnectClient client
+                    dispatch <| ClientDisconnected client
             | e ->
                 logger.WarnException e $"[packagesSubscription] Failed to handle package from {client.RemoteEndPoint}"
                 
@@ -339,10 +346,8 @@ module Chat =
                         |> List.where (fun socket -> model.Connections |> List.exists (fun x -> x.ConnectionId = socket) |> not)
                         
                     if otherNonConnectedUnixSocketFiles |> List.length > 0
-                    then
-                        logger.Debug $"[TryConnectToLocalPeers] Other non-connected unix sockets found. Connecting to {otherNonConnectedUnixSocketFiles}..."
-                    else
-                        logger.Debug $"[TryConnectToLocalPeers] No other non-connected unix sockets found. Skipping..."
+                    then logger.Debug $"[TryConnectToLocalPeers] Other non-connected unix sockets found. Connecting to {otherNonConnectedUnixSocketFiles}..."
+                    else logger.Debug $"[TryConnectToLocalPeers] No other non-connected unix sockets found. Skipping..."
                     
                     return
                         otherNonConnectedUnixSocketFiles
@@ -381,7 +386,7 @@ module Chat =
             logger.Debug $"[ConnectToLocalPeersIterationFinished] Connecting to local peers {peers} finished. Launching subscriptions..."
             
             let msgs = Cmd.batch [
-                Cmd.ofMsg <| PeersConnected peers
+                Cmd.ofMsg <| ClientsConnected peers
                 Cmd.ofMsg <| WaitThenSend (2000, StartConnectToLocalPeersLoop)
             ]
             model, msgs
@@ -435,30 +440,23 @@ module Chat =
             logger.Debug $"[ConnectToRemotePeersIterationFinished] Connecting to remote peers {peers} finished. Launching subscriptions..."
             
             let msgs = Cmd.batch [
-                Cmd.ofMsg <| PeersConnected peers
+                Cmd.ofMsg <| ClientsConnected peers
                 Cmd.ofMsg <| WaitThenSend (2000, StartConnectToRemotePeersLoop)
             ]
             model, msgs
-        | PeersConnected newlyConnected ->
+        | ClientsConnected newlyConnected ->
             let cmds =
                 newlyConnected
                 |> List.map (fun c ->
+                    logger.Info $"[PeersConnected] Peer connected {c}. Launch packages subscription..."
                     Cmd.ofSub <| packagesSubscription c.Client
                 )
             
             { model with Connections = model.Connections @ newlyConnected }, Cmd.batch cmds
-        | ClientConnected socket ->
+        | ClientDisconnected socket ->
             
-            logger.Info $"[ClientConnected] Remote tcp client connected from {socket.RemoteEndPoint}"
+            logger.Info $"[ClientDisconnected] Closing connection from {socket.LocalEndPoint} to {socket.RemoteEndPoint}..."
             
-            let connectedEndpoint = {
-                ConnectionId = socket.RemoteEndPoint.ToString()
-                EndPoint = socket.RemoteEndPoint
-                Client = socket
-            }
-            
-            { model with Connections = connectedEndpoint :: model.Connections }, Cmd.ofSub <| packagesSubscription socket
-        | DisconnectClient socket ->
             let connections =
                 model.Connections
                 |> List.where (fun o -> socket.RemoteEndPoint <> null && o.ConnectionId <> socket.RemoteEndPoint.ToString())
