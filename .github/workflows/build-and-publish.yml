@@ -172,9 +172,7 @@ jobs:
 
       - name: Calculate checksums
         run: | 
-          sha512sum **/*.exe
-          sha512sum **/*.deb
-          sha512sum **/*.dmg
+          sha512sum installers/**/*.zip
 
       - name: Upload release artifacts to latest release
         uses: alexellis/upload-assets@0.4.0
