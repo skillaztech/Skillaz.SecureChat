@@ -69,7 +69,7 @@ jobs:
         run: dotnet publish -c Release -r win-x64 --self-contained
         
       - name: Build .exe installer
-        uses: nadeemjazmawe/inno-setup-action-cli@master
+        uses: nadeemjazmawe/inno-setup-action-cli@v6.0.5
         with:
           filepath: src/windows-installer/installer.iss
         
