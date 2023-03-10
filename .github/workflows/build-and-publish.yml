@@ -69,7 +69,7 @@ jobs:
         run: dotnet publish -c Release -r win-x64 --self-contained
         
       - name: Build .exe installer
-        uses: callebstrom/inno-setup-cli-action@6
+        uses: callebstrom/inno-setup-cli@master
         with:
           file: src/windows-installer/installer.iss
         
@@ -101,6 +101,7 @@ jobs:
           dotnet deb install
 
       - name: Build .deb installer
+        working-directory: ./src
         run: dotnet deb -r ubuntu-x64 -c Release
         
       - name: Calculate checksum
@@ -119,13 +120,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Parse tag semver
+      
+      - name: Parse version from tag
         id: semver_parser
-        uses: booxmedialtd/ws-action-parse-semver@v1
-        with:
-          input_string: ${{ github.ref_name }}
-          version_extractor_regex: '\/v(.*)$'
+        uses: release-kit/semver@v1
 
       - name: Setup .NET ${{ env.DOTNET_VERSION }}
         uses: actions/setup-dotnet@v3
