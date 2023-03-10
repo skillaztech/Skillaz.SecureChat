@@ -16,6 +16,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         
+      - name: Print parameters
+        run: |
+          echo "Ref name: ${{ github.ref_name }}"
+          echo "Triggering actor: ${{ github.triggering_actor }}"
+        
       - name: Parse tag semver
         id: semver_parser
         uses: booxmedialtd/ws-action-parse-semver@master
