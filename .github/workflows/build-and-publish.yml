@@ -103,9 +103,6 @@ jobs:
       - name: Build .deb installer
         working-directory: ./src
         run: dotnet deb -r ubuntu-x64 -c Release
-        
-      - name: Calculate checksum
-        run: sha512sum ./src/bin/Release/net${{ env.DOTNET_VERSION }}/ubuntu-x64/*.deb
 
       - name: Publish .deb installer
         uses: actions/upload-artifact@v3
@@ -154,7 +151,7 @@ jobs:
       - name: Set installer icon
         run: |
           swiftc src/osx-installer/set-ex-icon.swift
-          set-ex-icon src/osx-installer/SSC.app/Contents/Resources/logo.icns Skillaz.SecureChat.${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.osx-x64.dmg
+          ./set-ex-icon src/osx-installer/SSC.app/Contents/Resources/logo.icns Skillaz.SecureChat.${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.osx-x64.dmg
 
       - name: Publish .dmg installer
         uses: actions/upload-artifact@v3
@@ -163,8 +160,8 @@ jobs:
           path: ./*.dmg
           retention-days: 1
       
-  generate_new_release:
-    name: Generate new release
+  upload_installers:
+    name: Upload installers to latest release
     runs-on: ubuntu-latest
     needs: [build_and_publish_windows, build_and_publish_linux, build_and_publish_macos]
     steps:

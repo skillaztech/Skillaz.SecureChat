@@ -7,7 +7,7 @@
 #define ApplicationShortenName "Skillaz.SecureChat"
 #define ApplicationInstallationFolder "SkillazSecureChat"
 #define ApplicationExeFile "Skillaz.SecureChat.exe" 
-#define ApplicationVersion GetVersionNumbersString("..\bin\Release\net6.0\win-x64\Skillaz.SecureChat.exe")
+#define ApplicationVersion GetFileVersion("..\bin\Release\net6.0\win-x64\Skillaz.SecureChat.exe")
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
