@@ -12,6 +12,7 @@
 #define ApplicationVersionPatchPart
 #define ApplicationVersionBuildPart
 #expr ParseVersion("..\bin\Release\net6.0\win-x64\Skillaz.SecureChat.exe", ApplicationVersionMajorPart, ApplicationVersionMinorPart, ApplicationVersionPatchPart, ApplicationVersionBuildPart)
+#define ApplicationVersion {#ApplicationVersionMajorPart}.{#ApplicationVersionMinorPart}.{#ApplicationVersionPatchPart}
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -25,7 +26,7 @@ AppPublisher={#AuthorName}
 DefaultDirName={commonpf}\{#ApplicationName}
 DefaultGroupName={#ApplicationName}
 AllowNoIcons=yes
-OutputBaseFilename={#ApplicationShortenName}.{#ApplicationVersionMajorPart}.{#ApplicationVersionMinorPart}.{#ApplicationVersionPatchPart}.win-x64
+OutputBaseFilename={#ApplicationShortenName}.{#ApplicationVersion}.win-x64
 Compression=lzma
 SolidCompression=yes
 AppCopyright={#AuthorName}
