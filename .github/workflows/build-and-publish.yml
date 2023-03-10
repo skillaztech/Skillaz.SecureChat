@@ -105,13 +105,13 @@ jobs:
         run: dotnet deb -r ubuntu-x64 -c Release
         
       - name: Calculate checksum
-        run: sha512sum ./*.deb
+        run: sha512sum ./src/bin/Release/net${{ env.DOTNET_VERSION }}/ubuntu-x64/*.deb
 
       - name: Publish .deb installer
         uses: actions/upload-artifact@v3
         with:
           name: ubuntu-x64-installer
-          path: ./*.deb
+          path: ./src/bin/Release/net${{ env.DOTNET_VERSION }}/ubuntu-x64/*.deb
           retention-days: 1
       
   build_and_publish_macos:
@@ -146,7 +146,7 @@ jobs:
       - name: Set .app file as executable
         run: |
           echo "Settings app package as executable..."
-          chmod +x src/osx-installer/SSC.app/Contents/MacOS/Skillaz.SecureChat
+          chmod +x src/osx-installer/SSC.app/Contents/MacOS/osx-x64/Skillaz.SecureChat
           
       - name: Build .dmg installer
         run: create-dmg \
