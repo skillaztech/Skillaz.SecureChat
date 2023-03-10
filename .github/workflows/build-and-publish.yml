@@ -182,4 +182,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          asset_paths: '["installers/win-x64-installer/*", "installers/ubuntu-x64-installer/*", ""installers/osx-x64-installer/*]'
+          asset_paths: '["installers/win-x64-installer/*", "installers/ubuntu-x64-installer/*", "installers/osx-x64-installer/*"]'
