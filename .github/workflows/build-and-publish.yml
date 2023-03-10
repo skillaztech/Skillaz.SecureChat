@@ -9,53 +9,49 @@ env:
   DOTNET_VERSION: '6.0'
 
 jobs:
-  bump_version_to_tag_version:
-    name: Bump current version to tag version
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Setup local git
-        run: |
-          git config --global user.name '${{ github.triggering_actor }}'
-          git config --global user.email '${{ github.triggering_actor }}@users.noreply.github.com'
-          git checkout master
-        
-      - name: Print parameters
-        run: |
-          echo "Ref name: ${{ github.ref_name }}"
-          echo "Triggering actor: ${{ github.triggering_actor }}"
-
-      - name: Parse version from tag
-        id: semver_parser
-        uses: release-kit/semver@v1
-
-      - name: Update versions inside fsproj
-        uses: SiqiLu/dotnet-bump-version@master
-        with:
-          version_files: src/Skillaz.SecureChat.fsproj
-          version_mask: 0.0.0.0
-          version_overwrite: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.*
-
-      - name: Commit Skillaz.SecureChat.fsproj
-        run: |
-          git config --global user.name '${{ github.triggering_actor }}'
-          git config --global user.email '${{ github.triggering_actor }}@users.noreply.github.com'
-          git commit -am "Update Skillaz.SecureChat.fsproj version"
-          
-      - name: Update versions inside Info.plist
-        uses: damienaicheh/update-ios-version-info-plist-action@v1.0.0
-        with:
-          info-plist-path: "src/osx-installer/SSC.app/Contents/Info.plist"
-          bundle-short-version-string: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}
-          bundle-version: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}
-
-      - name: Commit Info.plist
-        run: git commit -am "Update Info.plist bundle version"
-
-      - name: Git push changes
-        run: git push
+#  bump_version_to_tag_version:
+#    name: Bump current version to tag version
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v3
+#
+#      - name: Setup local git
+#        run: |
+#          git status
+#          git config pull.rebase false 
+#          git config user.name '${{ github.triggering_actor }}'
+#          git config user.email '${{ github.triggering_actor }}@users.noreply.github.com'
+#          git branch bump_tmp
+#        
+#      - name: Print parameters
+#        run: |
+#          echo "Ref name: ${{ github.ref_name }}"
+#          echo "Triggering actor: ${{ github.triggering_actor }}"
+#
+#      - name: Parse version from tag
+#        id: semver_parser
+#        uses: release-kit/semver@v1
+#
+#      - name: Update versions inside fsproj
+#        uses: SiqiLu/dotnet-bump-version@master
+#        with:
+#          version_files: src/Skillaz.SecureChat.fsproj
+#          version_mask: 0.0.0.0
+#          version_overwrite: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.*
+#          
+#      - name: Update versions inside Info.plist
+#        uses: damienaicheh/update-ios-version-info-plist-action@v1.0.0
+#        with:
+#          info-plist-path: "src/osx-installer/SSC.app/Contents/Info.plist"
+#          bundle-short-version-string: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}
+#          bundle-version: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}
+#
+#      - name: Commit version changes
+#        run: git commit -am "Bump versions"
+#
+#      - name: Git push changes
+#        run: git push
   
   build_and_publish_windows:
     name: Build and Deploy (win-x64)
