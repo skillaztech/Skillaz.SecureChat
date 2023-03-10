@@ -18,10 +18,10 @@ jobs:
         
       - name: Parse tag semver
         id: semver_parser
-        uses: booxmedialtd/ws-action-parse-semver@v1
+        uses: booxmedialtd/ws-action-parse-semver@master
         with:
           input_string: ${{ github.ref_name }}
-          version_extractor_regex: '(?!v)(.*)$'
+#          version_extractor_regex: '(?!v)(.*)$'
 
       - name: Update versions inside fsproj
         uses: SiqiLu/dotnet-bump-version@master
