@@ -20,6 +20,7 @@ jobs:
         run: |
           git config --global user.name '${{ github.triggering_actor }}'
           git config --global user.email '${{ github.triggering_actor }}@users.noreply.github.com'
+          git checkout master
         
       - name: Print parameters
         run: |
