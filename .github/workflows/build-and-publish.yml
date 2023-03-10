@@ -20,7 +20,7 @@ jobs:
         id: semver_parser
         uses: booxmedialtd/ws-action-parse-semver@v1
         with:
-          input_string: ${{ github.ref_name }}
+          input_string: ${{ github.event.release.tag_name }}
 
       - name: Update versions inside fsproj
         uses: SiqiLu/dotnet-bump-version@master
