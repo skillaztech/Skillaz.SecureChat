@@ -173,11 +173,13 @@ jobs:
       - name: Calculate checksums
         run: | 
           ls -R
-          sha512sum installers/**/*.zip
+          sha512sum installers/win-x64-installer/win-x64-installer.zip
+          sha512sum installers/ubuntu-x64-installer/ubuntu-x64-installer.zip
+          sha512sum installers/osx-x64-installer/osx-x64-installer.zip
 
       - name: Upload release artifacts to latest release
         uses: alexellis/upload-assets@0.4.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          asset_paths: '["installers/*"]'
+          asset_paths: '["installers/**/*"]'
