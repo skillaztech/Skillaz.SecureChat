@@ -27,6 +27,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{
 		.github\workflows\build-and-publish.yml = .github\workflows\build-and-publish.yml
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{319D43AE-614B-4FF3-95C4-663D9556EB94}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Skillaz.SecureChat.AcceptanceTests", "tests\Skillaz.SecureChat.AcceptanceTests.fsproj", "{9F990AD0-1C6F-4A78-B381-498CF9F5CE6D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -37,11 +41,16 @@ Global
 		{944EE6C3-C720-4BEA-9F09-87A1DD41E9CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{944EE6C3-C720-4BEA-9F09-87A1DD41E9CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{944EE6C3-C720-4BEA-9F09-87A1DD41E9CB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9F990AD0-1C6F-4A78-B381-498CF9F5CE6D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F990AD0-1C6F-4A78-B381-498CF9F5CE6D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F990AD0-1C6F-4A78-B381-498CF9F5CE6D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F990AD0-1C6F-4A78-B381-498CF9F5CE6D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{944EE6C3-C720-4BEA-9F09-87A1DD41E9CB} = {00E428E4-3C51-4C6B-8DF8-1C1372EFD29D}
 		{E2FA7658-B885-49C3-A884-835203415342} = {D25CB71C-312B-486C-84E1-7F00BC9311E2}
 		{9A02AF79-A212-401F-9B7F-6E2BC27C98FD} = {E2FA7658-B885-49C3-A884-835203415342}
 		{DC63D02C-E792-4F04-814B-2C9848D802EF} = {E2FA7658-B885-49C3-A884-835203415342}
+		{9F990AD0-1C6F-4A78-B381-498CF9F5CE6D} = {319D43AE-614B-4FF3-95C4-663D9556EB94}
 	EndGlobalSection
 EndGlobal
