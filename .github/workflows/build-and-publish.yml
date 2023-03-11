@@ -9,9 +9,31 @@ env:
   DOTNET_VERSION: '6.0'
 
 jobs:  
+  preparing_for_release:
+    name: Preparing
+    runs-on: ubuntu-latest
+    outputs:
+      major: ${{ steps.version.outputs.major }}
+      minor: ${{ steps.version.outputs.minor }}
+      patch: ${{ steps.version.outputs.patch }}
+    steps:
+      - name: Parse version from tag
+        id: semver_parser
+        uses: booxmedialtd/ws-action-parse-semver@v1
+        with:
+          input_string: ${{ github.ref_name }}
+      
+      - name: Set parsed version to job output
+        id: version
+        run: |
+          echo "major=${{ steps.semver_parser.outputs.major }}" >> "$GITHUB_OUTPUT"
+          echo "minor=${{ steps.semver_parser.outputs.minor }}" >> "$GITHUB_OUTPUT"
+          echo "patch=${{ steps.semver_parser.outputs.patch }}" >> "$GITHUB_OUTPUT"
+  
   build_and_publish_windows:
     name: Build and Deploy (win-x64)
     runs-on: windows-latest
+    needs: [preparing_for_release]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -21,18 +43,12 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Parse version from tag
-        id: semver_parser
-        uses: booxmedialtd/ws-action-parse-semver@v1
-        with:
-          input_string: ${{ github.ref_name }}
-
       - name: Update versions inside fsproj
         uses: SiqiLu/dotnet-bump-version@master
         with:
           version_files: src/Skillaz.SecureChat.fsproj
           version_mask: 0.0.0.0
-          version_overwrite: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.*
+          version_overwrite: ${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.*
 
       - name: Build binaries
         run: dotnet publish -c Release -r win-x64 --self-contained
@@ -53,6 +69,7 @@ jobs:
   build_and_publish_linux:
     name: Build and Deploy (ubuntu-x64)
     runs-on: ubuntu-latest
+    needs: [preparing_for_release]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -62,18 +79,12 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Parse version from tag
-        id: semver_parser
-        uses: booxmedialtd/ws-action-parse-semver@v1
-        with:
-          input_string: ${{ github.ref_name }}
-
       - name: Update versions inside fsproj
         uses: SiqiLu/dotnet-bump-version@master
         with:
           version_files: src/Skillaz.SecureChat.fsproj
           version_mask: 0.0.0.0
-          version_overwrite: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.*
+          version_overwrite: ${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.*
 
       - name: Install tools
         run: |
@@ -96,29 +107,24 @@ jobs:
   build_and_publish_macos:
     name: Build and Deploy (osx-x64)
     runs-on: macos-latest
+    needs: [preparing_for_release]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      
-      - name: Parse version from tag
-        id: semver_parser
-        uses: booxmedialtd/ws-action-parse-semver@v1
-        with:
-          input_string: ${{ github.ref_name }}
           
       - name: Update versions inside fsproj
         uses: SiqiLu/dotnet-bump-version@master
         with:
           version_files: src/Skillaz.SecureChat.fsproj
           version_mask: 0.0.0.0
-          version_overwrite: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.*
+          version_overwrite: ${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.*
       
       - name: Update versions inside Info.plist
         uses: damienaicheh/update-ios-version-info-plist-action@v1.0.0
         with:
           info-plist-path: "src/osx-installer/SSC.app/Contents/Info.plist"
-          bundle-short-version-string: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}
-          bundle-version: ${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}
+          bundle-short-version-string: ${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}
+          bundle-version: ${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}
 
       - name: Setup .NET ${{ env.DOTNET_VERSION }}
         uses: actions/setup-dotnet@v3
@@ -144,12 +150,12 @@ jobs:
           chmod +x src/osx-installer/SSC.app/Contents/MacOS/osx-x64/Skillaz.SecureChat
           
       - name: Build .dmg installer
-        run: create-dmg --volname "Skillaz Secure Chat" --volicon "src/osx-installer/SSC.app/Contents/Resources/logo.icns" --icon "SSC.app" 30 60 --hide-extension "SSC.app" --app-drop-link 280 60 --no-internet-enable "Skillaz.SecureChat.${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.osx-x64.dmg" "src/osx-installer/SSC.app"
+        run: create-dmg --volname "Skillaz Secure Chat" --volicon "src/osx-installer/SSC.app/Contents/Resources/logo.icns" --icon "SSC.app" 30 60 --hide-extension "SSC.app" --app-drop-link 280 60 --no-internet-enable "Skillaz.SecureChat.${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.osx-x64.dmg" "src/osx-installer/SSC.app"
         
       - name: Set installer icon
         run: |
           swiftc src/osx-installer/set-ex-icon.swift
-          ./set-ex-icon src/osx-installer/SSC.app/Contents/Resources/logo.icns Skillaz.SecureChat.${{ steps.semver_parser.outputs.major }}.${{ steps.semver_parser.outputs.minor }}.${{ steps.semver_parser.outputs.patch }}.osx-x64.dmg
+          ./set-ex-icon src/osx-installer/SSC.app/Contents/Resources/logo.icns Skillaz.SecureChat.${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.osx-x64.dmg
 
       - name: Publish .dmg installer
         uses: actions/upload-artifact@v3
@@ -161,7 +167,7 @@ jobs:
   upload_installers:
     name: Upload installers to latest release
     runs-on: ubuntu-latest
-    needs: [build_and_publish_windows, build_and_publish_linux, build_and_publish_macos]
+    needs: [preparing_for_release, build_and_publish_windows, build_and_publish_linux, build_and_publish_macos]
     steps:
       - name: Download installers
         uses: actions/download-artifact@v3
@@ -169,15 +175,32 @@ jobs:
           path: installers/
 
       - name: Calculate checksums
+        id: checksums
         run: | 
           ls -R
-          sha512sum installers/win-x64-installer/*.exe
-          sha512sum installers/ubuntu-x64-installer/*.deb
-          sha512sum installers/osx-x64-installer/*.dmg
-
-      - name: Upload release artifacts to latest release
-        uses: alexellis/upload-assets@0.4.0
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+          exe=$(sha512sum installers/win-x64-installer/*.exe | cut -d " " -f 1)
+          echo "exe_checksum=${exe}" >> "$GITHUB_OUTPUT"
+          deb=$(sha512sum installers/ubuntu-x64-installer/*.deb | cut -d " " -f 1)
+          echo "deb_checksum=${deb}" >> "$GITHUB_OUTPUT"
+          dmg=$(sha512sum installers/osx-x64-installer/*.dmg | cut -d " " -f 1)
+          echo "dmg_checksum=${dmg}" >> "$GITHUB_OUTPUT"
+          
+      - name: Release
+        uses: softprops/action-gh-release@v1
         with:
-          asset_paths: '["installers/win-x64-installer/*", "installers/ubuntu-x64-installer/*", "installers/osx-x64-installer/*"]'
+          append_body: true
+          body: |
+            ## Protection
+            [Validation instruction](https://picolino.dev/gpg/gpg-signing/#sha-hash)
+
+            |Alg|File|Hash|
+            |:--:|:--:|:--:|
+            |SHA512|Skillaz.SecureChat.${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.ubuntu-x64.deb|${{ steps.checksums.outputs.deb_checksum }}|
+            |SHA512|Skillaz.SecureChat.${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.win-x64.exe|${{ steps.checksums.outputs.exe_checksum }}|
+            |SHA512|Skillaz.SecureChat.${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.osx-x64.dmg|${{ steps.checksums.outputs.dmg_checksum }}|
+          draft: false
+          prerelease: false
+          files: |
+            installers/win-x64-installer/*
+            installers/ubuntu-x64-installer/*
+            installers/osx-x64-installer/*
