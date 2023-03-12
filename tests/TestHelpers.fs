@@ -3,7 +3,7 @@
 open System.Net.Sockets
 open Skillaz.SecureChat.Chat
 open Skillaz.SecureChat.ChatArgs
-open Skillaz.SecureChat.IO.OsDetector
+open Skillaz.SecureChat.IO.IOsDetector
 
 let emptyArgs =
     {
@@ -11,7 +11,7 @@ let emptyArgs =
         OsDetector = {
             new IOsDetector with
             member _.IsLinux() = false
-            member _.IsMacOs() = false
+            member _.IsMacOS() = false
         }
     }
 

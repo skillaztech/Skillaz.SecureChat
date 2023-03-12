@@ -8,7 +8,7 @@
     Then user name should be not empty
     Then secret code should be not empty
 
-  Scenario Outline: Unix sockets folder should be common applications data folder on Windows OS
+  Scenario Outline: Unix sockets folder should set properly for different OS
     Given <OS> operation system
     When application starts
     Then unix sockets folder should be <Unix socket folder>

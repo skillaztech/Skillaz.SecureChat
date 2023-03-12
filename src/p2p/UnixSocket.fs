@@ -6,6 +6,7 @@ open System.Net.Sockets
 open System.Security.AccessControl
 open System.Security.Principal
 open Mono.Unix
+open Skillaz.SecureChat.IO.IOsDetector
 open Skillaz.SecureChat.P2PNetwork
 
 module UnixSocket =
@@ -27,7 +28,7 @@ module UnixSocket =
                     directoryInfo.Refresh()
                 else
                     let accessControl = directory.GetAccessControl()
-                    accessControl.AddAccessRule(FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.FullControl, InheritanceFlags.ObjectInherit ||| InheritanceFlags.ContainerInherit, PropagationFlags.NoPropagateInherit, AccessControlType.Allow));
+                    accessControl.AddAccessRule(FileSystemAccessRule(SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.FullControl, InheritanceFlags.ObjectInherit ||| InheritanceFlags.ContainerInherit, PropagationFlags.NoPropagateInherit, AccessControlType.Allow));
                     directory.SetAccessControl(accessControl)
         
         File.Delete(path)
@@ -44,7 +45,7 @@ module UnixSocket =
         else
             let fileInfo = FileInfo(path)
             let fileAccessControl = fileInfo.GetAccessControl()
-            fileAccessControl.AddAccessRule(FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.FullControl, InheritanceFlags.None, PropagationFlags.NoPropagateInherit, AccessControlType.Allow));
+            fileAccessControl.AddAccessRule(FileSystemAccessRule(SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.FullControl, InheritanceFlags.None, PropagationFlags.NoPropagateInherit, AccessControlType.Allow));
             fileInfo.SetAccessControl(fileAccessControl)
 
         socket

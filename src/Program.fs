@@ -13,7 +13,7 @@ open Avalonia.Themes.Fluent
 open Avalonia.FuncUI.Hosts
 open Avalonia.FuncUI.Elmish
 open Skillaz.SecureChat.ChatArgs
-open Skillaz.SecureChat.IO.OsDetector
+open Skillaz.SecureChat.IO.IOsDetector
 
 type MainWindow() as this =
     inherit HostWindow()
@@ -35,7 +35,7 @@ type MainWindow() as this =
             OsDetector = {
                 new IOsDetector with
                     member this.IsLinux() = OperatingSystem.IsLinux()
-                    member this.IsMacOs() = OperatingSystem.IsMacOS()
+                    member this.IsMacOS() = OperatingSystem.IsMacOS()
             }
         }
         

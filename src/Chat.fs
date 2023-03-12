@@ -229,7 +229,7 @@ module Chat =
         logger.Info $"[init] Log level from user settings enabled {logLevelFromUserSettings}"
         
         let unixSocketsFolder =
-            if args.OsDetector.IsLinux() || args.OsDetector.IsMacOs()
+            if args.OsDetector.IsLinux() || args.OsDetector.IsMacOS()
             then "/tmp/ssc/"
             else Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "/ssc/")
             

@@ -19,7 +19,7 @@
         <Compile Include="ListHelpers.fs" />
         <Compile Include="Message.fs" />
         <Compile Include="Logger.fs" />
-        <Compile Include="IO\OsDetector.fs" />
+        <Compile Include="IO\IOsDetector.fs" />
         <Compile Include="p2p\P2PNetwork.fs" />
         <Compile Include="p2p\UnixSocket.fs" />
         <Compile Include="p2p\Tcp.fs" />

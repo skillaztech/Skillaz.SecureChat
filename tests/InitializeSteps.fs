@@ -4,7 +4,7 @@ open System
 open System.IO
 open Skillaz.SecureChat
 open Skillaz.SecureChat.Chat
-open Skillaz.SecureChat.IO.OsDetector
+open Skillaz.SecureChat.IO.IOsDetector
 open TickSpec
 open Expecto
 
@@ -17,7 +17,7 @@ type InitializeSteps () =
         let osDetector = {
             new IOsDetector with
             member _.IsLinux() = os = "Linux"
-            member _.IsMacOs() = os = "MacOS"
+            member _.IsMacOS() = os = "MacOS"
         }
         
         args <- { args with OsDetector = osDetector }
