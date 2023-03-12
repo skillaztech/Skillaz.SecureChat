@@ -19,6 +19,7 @@ open Elmish
 open Avalonia.FuncUI
 open Avalonia.Controls
 open NLog
+open Skillaz.SecureChat.ChatArgs
 open Skillaz.SecureChat.Message
 
 module Chat =
@@ -46,6 +47,7 @@ module Chat =
     }
     
     type Model = {
+        Args: ChatArgs
         UserName: string
         UserNameValidationErrors: string list
         SecretCode: int
@@ -159,12 +161,12 @@ module Chat =
         
         handlePackages client dispatch |> Async.Start
     
-    let init (currentProcessDirectory: string) =
+    let init (args: ChatArgs) =
         
-        logger.Info $"[init] Start app init into {currentProcessDirectory}"
+        logger.Info $"[init] Start app init into {args.ProcessDirectory}"
         
         let appSettings = Configuration.AppSettings()
-        let appSettingsFilePath = Path.Join(currentProcessDirectory, "appsettings.yaml")
+        let appSettingsFilePath = Path.Join(args.ProcessDirectory, "appsettings.yaml")
         
         try
             logger.Info $"[init] Loading application settings from {appSettingsFilePath}"
@@ -227,7 +229,7 @@ module Chat =
         logger.Info $"[init] Log level from user settings enabled {logLevelFromUserSettings}"
         
         let unixSocketsFolder =
-            if OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
+            if args.OsDetector.IsLinux() || args.OsDetector.IsMacOs()
             then "/tmp/ssc/"
             else Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "/ssc/")
             
@@ -241,6 +243,7 @@ module Chat =
         let knownRemotePeers = appSettings.KnownRemotePeers |> Seq.map IPEndPoint.Parse |> List.ofSeq
         
         let model = {
+            Args = args
             KnownPeers = knownRemotePeers
             ListenerPort = appSettings.ListenerTcpPort
             ClientPort = appSettings.ClientTcpPort

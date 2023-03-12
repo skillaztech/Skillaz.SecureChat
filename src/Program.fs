@@ -1,5 +1,6 @@
 ﻿namespace Skillaz.SecureChat
 
+open System
 open System.IO
 open System.Reflection
 open Avalonia.Logging
@@ -11,6 +12,8 @@ open Avalonia.FuncUI
 open Avalonia.Themes.Fluent
 open Avalonia.FuncUI.Hosts
 open Avalonia.FuncUI.Elmish
+open Skillaz.SecureChat.ChatArgs
+open Skillaz.SecureChat.IO.OsDetector
 
 type MainWindow() as this =
     inherit HostWindow()
@@ -27,7 +30,16 @@ type MainWindow() as this =
         //this.VisualRoot.VisualRoot.Renderer.DrawFps <- true
         //this.VisualRoot.VisualRoot.Renderer.DrawDirtyRects <- true
         
-        Program.mkProgram (fun () -> Chat.init currentProcessDirectory) Chat.update Chat.view
+        let args = {
+            ProcessDirectory = currentProcessDirectory
+            OsDetector = {
+                new IOsDetector with
+                    member this.IsLinux() = OperatingSystem.IsLinux()
+                    member this.IsMacOs() = OperatingSystem.IsMacOS()
+            }
+        }
+        
+        Program.mkProgram (fun () -> Chat.init args) Chat.update Chat.view
         |> Program.withHost this
         |> Program.withErrorHandler (fun (msg, e) -> Logger.nlogger.FatalException e $"{msg}")
         |> Program.run

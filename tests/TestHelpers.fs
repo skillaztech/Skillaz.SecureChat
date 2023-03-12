@@ -2,9 +2,22 @@
 
 open System.Net.Sockets
 open Skillaz.SecureChat.Chat
+open Skillaz.SecureChat.ChatArgs
+open Skillaz.SecureChat.IO.OsDetector
+
+let emptyArgs =
+    {
+        ProcessDirectory = ""
+        OsDetector = {
+            new IOsDetector with
+            member _.IsLinux() = false
+            member _.IsMacOs() = false
+        }
+    }
 
 let emptyModel =
     {
+            Args = emptyArgs
             KnownPeers = []
             ListenerPort = 0
             ClientPort = 0
