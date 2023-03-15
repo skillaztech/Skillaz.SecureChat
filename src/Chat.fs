@@ -467,7 +467,7 @@ module Chat =
             let cmds =
                 newlyConnected
                 |> List.map (fun c ->
-                    logger.Info $"[PeersConnected] Peer connected {c}. Launch packages subscription..."
+                    logger.Info $"[ClientsConnected] Peer connected {c}. Launch packages subscription..."
                     Cmd.ofSub <| packagesSubscription c.Client
                 )
             
