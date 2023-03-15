@@ -161,9 +161,9 @@ module Chat =
         
         handlePackages client dispatch |> Async.Start
     
-    let init (args: ChatArgs) =
-        
+    let init (args: ChatArgs) =        
         logger.Info $"[init] Start app init into {args.ProcessDirectory}"
+        logger.Info $"[init] Version: {args.Version}"
         
         let appSettings = Configuration.AppSettings()
         let appSettingsFilePath = Path.Join(args.ProcessDirectory, "appsettings.yaml")
@@ -349,7 +349,7 @@ module Chat =
                         |> List.where (fun socket -> model.Connections |> List.exists (fun x -> x.ConnectionId = socket) |> not)
                         
                     if otherNonConnectedUnixSocketFiles |> List.length > 0
-                    then logger.Debug $"[TryConnectToLocalPeers] Other non-connected unix sockets found. Connecting to {otherNonConnectedUnixSocketFiles}..."
+                    then logger.Info $"[TryConnectToLocalPeers] Other non-connected unix sockets found. Connecting to {otherNonConnectedUnixSocketFiles}..."
                     else logger.Debug $"[TryConnectToLocalPeers] No other non-connected unix sockets found. Skipping..."
                     
                     return
@@ -357,7 +357,7 @@ module Chat =
                         |> Array.ofList
                         |> Array.Parallel.map (fun socketFile ->
                             let socket = UnixSocket.client
-                            logger.Debug $"[TryConnectToLocalPeers] Connecting to local unix socket {socketFile}..."
+                            logger.Info $"[TryConnectToLocalPeers] Connecting to local unix socket {socketFile}..."
                             
                             try
                                 let unixSocketClient = UnixSocket.connectSocket socket socketFile
@@ -369,11 +369,8 @@ module Chat =
                                 Some connectionEndpoint
                             with
                             | e ->
-                                
-                                logger.DebugException e $"[TryConnectToLocalPeers] Failed to connect to local unix socket {socketFile}. Disposing socket..."
-                                
+                                logger.InfoException e $"[TryConnectToLocalPeers] Failed to connect to local unix socket {socketFile}. Disposing socket..."
                                 socket.Dispose()
-                                
                                 None
                         )
                         |> Array.choose id
@@ -404,7 +401,7 @@ module Chat =
                         |> List.where (fun ep -> model.Connections |> List.exists (fun x -> x.ConnectionId = ep.ToString()) |> not)
                         
                     if nonConnectedRemotePeers |> List.length > 0
-                    then logger.Debug $"[StartConnectToRemotePeersLoop] Non-connected known peers found {nonConnectedRemotePeers}. Connecting..."
+                    then logger.Info $"[StartConnectToRemotePeersLoop] Non-connected known peers found {nonConnectedRemotePeers}. Connecting..."
                     else logger.Debug $"[StartConnectToRemotePeersLoop] All known peers already connected. Skipping..."
                     
                     return
@@ -413,7 +410,7 @@ module Chat =
                         |> Array.Parallel.map (fun ep ->
                             let socket = Tcp.client model.ClientPort
                             
-                            logger.Debug $"[StartConnectToRemotePeersLoop] Connecting to remote tcp endpoint {ep} from {socket.LocalEndPoint}..."
+                            logger.Info $"[StartConnectToRemotePeersLoop] Connecting to remote tcp endpoint {ep} from {socket.LocalEndPoint}..."
                             
                             try
                                 let connectedSocket = Tcp.connectSocket ep.Address ep.Port socket
@@ -425,7 +422,7 @@ module Chat =
                                 Some connectionEndpoint
                             with
                             | e ->
-                                logger.DebugException e $"[StartConnectToRemotePeersLoop] Connection to remote tcp endpoint {ep} failed"
+                                logger.InfoException e $"[StartConnectToRemotePeersLoop] Connection to remote tcp endpoint {ep} failed. Disposing socket..."
                                 socket.Dispose()
                                 None
                         )

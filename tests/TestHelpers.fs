@@ -7,6 +7,7 @@ open Skillaz.SecureChat.IO.IOsDetector
 
 let emptyArgs =
     {
+        Version = "v1.0.0"
         ProcessDirectory = ""
         OsDetector = {
             new IOsDetector with
