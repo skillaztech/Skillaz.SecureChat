@@ -240,6 +240,25 @@ module Chat =
             
         logger.Info $"[init] Unix socket file path for current user selected as {unixSocketFilePath}"
         
+        let unixSocketListener = UnixSocket.listener unixSocketFilePath
+        let tcpListener = Tcp.listener
+        
+        let exitHandler _ _ =
+            try
+                let path = unixSocketListener.LocalEndPoint.ToString()
+                logger.Info $"[exitHandler] Application exits. Disposing and deleting unix socket: {path}."
+                
+                unixSocketListener.Dispose()
+                File.Delete(path)
+                
+                logger.Info $"[exitHandler] Disposing tcp listener"
+                tcpListener.Dispose()
+            with
+            | e ->
+                logger.FatalException e "[exitHandler] Application exiting failed."
+                
+        args.ApplicationLifetime.Exit.AddHandler(exitHandler)
+        
         let knownRemotePeers = appSettings.KnownRemotePeers |> Seq.map IPEndPoint.Parse |> List.ofSeq
         
         let model = {
@@ -252,8 +271,8 @@ module Chat =
             UserNameValidationErrors = []
             UserId = userSettings.UserId.ToString()
             MaxChatMessageLength = appSettings.MaxChatMessageLength
-            TcpListener = Tcp.listener
-            UnixSocketListener = UnixSocket.listener unixSocketFilePath
+            TcpListener = tcpListener
+            UnixSocketListener = unixSocketListener
             UnixSocketFolder = unixSocketsFolder
             UnixSocketFilePath = unixSocketFilePath
             Connections = []

@@ -15,7 +15,7 @@ open Avalonia.FuncUI.Elmish
 open Skillaz.SecureChat.ChatArgs
 open Skillaz.SecureChat.IO.IOsDetector
 
-type MainWindow() as this =
+type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
     inherit HostWindow()
     do
         let assembly = Assembly.GetExecutingAssembly()
@@ -34,6 +34,7 @@ type MainWindow() as this =
         //this.VisualRoot.VisualRoot.Renderer.DrawDirtyRects <- true
         
         let args = {
+            ApplicationLifetime = lifeTime
             Version = versionStr
             ProcessDirectory = currentProcessDirectory
             OsDetector = {
@@ -58,7 +59,7 @@ type App() =
     override this.OnFrameworkInitializationCompleted() =
         match this.ApplicationLifetime with
         | :? IClassicDesktopStyleApplicationLifetime as desktopLifetime ->
-            desktopLifetime.MainWindow <- MainWindow()
+            desktopLifetime.MainWindow <- MainWindow(desktopLifetime)
         | _ -> ()
 
 module Program =
