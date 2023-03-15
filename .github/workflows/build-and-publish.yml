@@ -44,11 +44,10 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Update versions inside fsproj
-        uses: SiqiLu/dotnet-bump-version@master
+        uses: vers-one/dotnet-project-version-updater@v1.3
         with:
-          version_files: src/Skillaz.SecureChat.fsproj
-          version_mask: 0.0.0.0
-          version_overwrite: ${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.*
+          file: src/Skillaz.SecureChat.fsproj
+          version: ${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}
 
       - name: Build binaries
         run: dotnet publish -c Release -r win-x64 --self-contained
@@ -80,11 +79,10 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Update versions inside fsproj
-        uses: SiqiLu/dotnet-bump-version@master
+        uses: vers-one/dotnet-project-version-updater@v1.3
         with:
-          version_files: src/Skillaz.SecureChat.fsproj
-          version_mask: 0.0.0.0
-          version_overwrite: ${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.*
+          file: src/Skillaz.SecureChat.fsproj
+          version: ${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}
 
       - name: Install tools
         run: |
@@ -111,13 +109,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-          
+
       - name: Update versions inside fsproj
-        uses: SiqiLu/dotnet-bump-version@master
+        uses: vers-one/dotnet-project-version-updater@v1.3
         with:
-          version_files: src/Skillaz.SecureChat.fsproj
-          version_mask: 0.0.0.0
-          version_overwrite: ${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.*
+          file: src/Skillaz.SecureChat.fsproj
+          version: ${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}
       
       - name: Update versions inside Info.plist
         uses: damienaicheh/update-ios-version-info-plist-action@v1.0.0
