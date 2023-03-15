@@ -236,7 +236,7 @@ module Chat =
         logger.Debug $"[init] Directory for unix sockets chosen as {unixSocketsFolder}"
         
         let unixSocketFilePath =
-            Path.Join(unixSocketsFolder, $"{Convert.ToBase64String(Encoding.UTF8.GetBytes(userSettings.UserId.ToString()))}.socket")
+            Path.Join(unixSocketsFolder, $"{Environment.UserName}-{userSettings.UserId.ToString()}.socket")
             
         logger.Info $"[init] Unix socket file path for current user selected as {unixSocketFilePath}"
         
