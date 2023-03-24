@@ -167,20 +167,20 @@ module Chat =
         
         let appSettings = Configuration.AppSettings()
         let appSettingsFilePath = Path.Join(args.ProcessDirectory, "appsettings.yaml")
-        
-        try
-            logger.Info $"[init] Loading application settings from {appSettingsFilePath}"
-            appSettings.Load(appSettingsFilePath)
-        with
-        | e ->
-            logger.FatalException e "[init] Application settings loading failed with an exception. Exiting..."
-            reraise()
+        if File.Exists(appSettingsFilePath)
+        then
+            try
+                logger.Info $"[init] Loading application settings from {appSettingsFilePath}"
+                appSettings.Load(appSettingsFilePath)
+            with
+            | e ->
+                logger.FatalException e "[init] Application settings loading failed with an exception. Loading defaults."
         
         if appSettings.MaxChatMessageLength = 0 then appSettings.MaxChatMessageLength <- 3000
         if appSettings.ClientTcpPort = 0 then appSettings.ClientTcpPort <- 63211
         if appSettings.ListenerTcpPort = 0 then appSettings.ListenerTcpPort <- 63211
         
-        logger.Info $"[init] Application settings loaded from {appSettingsFilePath}. Loaded application settings: {appSettings}"
+        logger.Info $"[init] Loaded application settings: {appSettings}"
         
         let userSettings = Configuration.UserSettings()
         let userSettingsFilePath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "/ssc/", "usersettings.yaml")
