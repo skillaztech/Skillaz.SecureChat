@@ -24,9 +24,8 @@
         <Compile Include="p2p\UnixSocket.fs" />
         <Compile Include="p2p\Tcp.fs" />
         <Compile Include="Configuration.fs" />
-        <Content Include="appsettings.yaml">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
+        <Compile Include="ConfigurationService.fs" />
+        <Content Include="appsettings.yaml" />
         <Compile Include="ChatArgs.fs" />
         <Compile Include="Chat.fs" />
         <Compile Include="Program.fs" />
