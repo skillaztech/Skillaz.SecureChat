@@ -4,6 +4,11 @@
 
 Peer-to-peer chat application for network communication with ability to setup data transmission limitations, separated groups and multiple-users-on-one-machine support.
 
+[![Build and Deploy](https://github.com/skillaztech/Skillaz.SecureChat/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/skillaztech/Skillaz.SecureChat/actions/workflows/build-and-publish.yml)
+![Supported platforms](https://img.shields.io/badge/platforms-win--x64%20%7C%20osx--x64%20%7C%20ubuntu--x64-blue)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/skillaztech/skillaz.securechat)
+![GitHub all releases](https://img.shields.io/github/downloads/skillaztech/skillaz.securechat/total?color=blue)
+
 ## Problem
 Imagine, you have a single terminal server that you use to access some protected environment, for example, RDP-server. 
 Also you have a lot of sensitive data under that protected environment. In common case limited access to that information is allowed and needed,
