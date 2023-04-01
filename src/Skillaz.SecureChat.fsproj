@@ -20,11 +20,7 @@
         <Compile Include="Message.fs" />
         <Compile Include="Logger.fs" />
         <Compile Include="IO\IOsDetector.fs" />
-        <Compile Include="p2p\P2PNetwork.fs" />
-        <Compile Include="p2p\UnixSocket.fs" />
-        <Compile Include="p2p\Tcp.fs" />
         <Compile Include="Configuration.fs" />
-        <Compile Include="ConfigurationService.fs" />
         <Content Include="appsettings.yaml" />
         <Compile Include="ChatArgs.fs" />
         <Compile Include="Chat.fs" />
@@ -63,7 +59,10 @@
         <PackageReference Include="JaggerJo.Avalonia.FuncUI" Version="0.6.0-preview3" />
         <PackageReference Include="JaggerJo.Avalonia.FuncUI.Elmish" Version="0.6.0-preview3" />
         <PackageReference Update="FSharp.Core" Version="6.0.7" />
-        <PackageReference Include="Mono.Posix" Version="7.1.0-final.1.21458.1" />
         <PackageReference Include="NLog.FSharp" Version="4.5.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="Skillaz.SecureChat.P2P\Skillaz.SecureChat.P2P.fsproj" />
     </ItemGroup>
 </Project>

@@ -21,6 +21,7 @@ open Avalonia.Controls
 open NLog
 open Skillaz.SecureChat.ChatArgs
 open Skillaz.SecureChat.Message
+open Skillaz.SecureChat.P2P
 
 module Chat =
     let logger = Logger.nlogger

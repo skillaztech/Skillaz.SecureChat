@@ -1,15 +1,14 @@
-namespace Skillaz.SecureChat
+namespace Skillaz.SecureChat.P2P
 
 open System.Net
 open System.Net.Sockets
-open P2PNetwork
 
 module Tcp =
     
     let listener =
         let socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
         socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true)
-        socket.SendTimeout <- defaultSocketTimeoutMs
+        socket.SendTimeout <- P2PNetwork.defaultSocketTimeoutMs
         socket
         
     let tryBindTo (ip:IPAddress) port (tcp:Socket) =
@@ -20,7 +19,7 @@ module Tcp =
         let socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
         socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true)
         socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true)
-        socket.SendTimeout <- defaultSocketTimeoutMs
+        socket.SendTimeout <- P2PNetwork.defaultSocketTimeoutMs
         socket.Bind(IPEndPoint(IPAddress.Any, localPort))
         socket
         

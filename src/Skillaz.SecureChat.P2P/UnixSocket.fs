@@ -1,4 +1,4 @@
-﻿namespace Skillaz.SecureChat
+﻿namespace Skillaz.SecureChat.P2P
 
 open System
 open System.IO
@@ -6,8 +6,6 @@ open System.Net.Sockets
 open System.Security.AccessControl
 open System.Security.Principal
 open Mono.Unix
-open Skillaz.SecureChat.IO.IOsDetector
-open Skillaz.SecureChat.P2PNetwork
 
 module UnixSocket =
     
@@ -34,7 +32,7 @@ module UnixSocket =
         File.Delete(path)
         
         let socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP)
-        socket.SendTimeout <- defaultSocketTimeoutMs
+        socket.SendTimeout <- P2PNetwork.defaultSocketTimeoutMs
         socket.Bind(UnixDomainSocketEndPoint(path))
         
         if isUnix
@@ -52,8 +50,8 @@ module UnixSocket =
         
     let client =
         let socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP)
-        socket.SendTimeout <- defaultSocketTimeoutMs
+        socket.SendTimeout <- P2PNetwork.defaultSocketTimeoutMs
         socket
         
     let connectSocket socket path  =
-        connectSocket socket <| UnixDomainSocketEndPoint(path)
+        P2PNetwork.connectSocket socket <| UnixDomainSocketEndPoint(path)
