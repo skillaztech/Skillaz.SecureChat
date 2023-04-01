@@ -161,9 +161,9 @@ module Chat =
         
         handlePackages client dispatch |> Async.Start
     
-    let init (args: ChatArgs) =
-        
+    let init (args: ChatArgs) =        
         logger.Info $"[init] Start app init into {args.ProcessDirectory}"
+        logger.Info $"[init] Version: {args.Version}"
         
         let appSettings = Configuration.AppSettings()
         let appSettingsFilePath = Path.Join(args.ProcessDirectory, "appsettings.yaml")
@@ -236,9 +236,28 @@ module Chat =
         logger.Debug $"[init] Directory for unix sockets chosen as {unixSocketsFolder}"
         
         let unixSocketFilePath =
-            Path.Join(unixSocketsFolder, $"{Convert.ToBase64String(Encoding.UTF8.GetBytes(userSettings.UserId.ToString()))}.socket")
+            Path.Join(unixSocketsFolder, $"{Environment.UserName}-{userSettings.UserId.ToString()}.socket")
             
         logger.Info $"[init] Unix socket file path for current user selected as {unixSocketFilePath}"
+        
+        let unixSocketListener = UnixSocket.listener unixSocketFilePath
+        let tcpListener = Tcp.listener
+        
+        let exitHandler _ _ =
+            try
+                let path = unixSocketListener.LocalEndPoint.ToString()
+                logger.Info $"[exitHandler] Application exits. Disposing and deleting unix socket: {path}."
+                
+                unixSocketListener.Dispose()
+                File.Delete(path)
+                
+                logger.Info $"[exitHandler] Disposing tcp listener"
+                tcpListener.Dispose()
+            with
+            | e ->
+                logger.FatalException e "[exitHandler] Application exiting failed."
+                
+        args.ApplicationLifetime.Exit.AddHandler(exitHandler)
         
         let knownRemotePeers = appSettings.KnownRemotePeers |> Seq.map IPEndPoint.Parse |> List.ofSeq
         
@@ -252,8 +271,8 @@ module Chat =
             UserNameValidationErrors = []
             UserId = userSettings.UserId.ToString()
             MaxChatMessageLength = appSettings.MaxChatMessageLength
-            TcpListener = Tcp.listener
-            UnixSocketListener = UnixSocket.listener unixSocketFilePath
+            TcpListener = tcpListener
+            UnixSocketListener = unixSocketListener
             UnixSocketFolder = unixSocketsFolder
             UnixSocketFilePath = unixSocketFilePath
             Connections = []
@@ -369,11 +388,8 @@ module Chat =
                                 Some connectionEndpoint
                             with
                             | e ->
-                                
                                 logger.DebugException e $"[TryConnectToLocalPeers] Failed to connect to local unix socket {socketFile}. Disposing socket..."
-                                
                                 socket.Dispose()
-                                
                                 None
                         )
                         |> Array.choose id
@@ -425,7 +441,7 @@ module Chat =
                                 Some connectionEndpoint
                             with
                             | e ->
-                                logger.DebugException e $"[StartConnectToRemotePeersLoop] Connection to remote tcp endpoint {ep} failed"
+                                logger.DebugException e $"[StartConnectToRemotePeersLoop] Connection to remote tcp endpoint {ep} failed. Disposing socket..."
                                 socket.Dispose()
                                 None
                         )
@@ -451,7 +467,7 @@ module Chat =
             let cmds =
                 newlyConnected
                 |> List.map (fun c ->
-                    logger.Info $"[PeersConnected] Peer connected {c}. Launch packages subscription..."
+                    logger.Info $"[ClientsConnected] Peer connected {c}. Launch packages subscription..."
                     Cmd.ofSub <| packagesSubscription c.Client
                 )
             
