@@ -17,7 +17,6 @@
 
     <ItemGroup>
         <Compile Include="ListHelpers.fs" />
-        <Compile Include="Message.fs" />
         <Compile Include="Logger.fs" />
         <Compile Include="IO\IOsDetector.fs" />
         <Compile Include="Configuration.fs" />
@@ -63,6 +62,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="Skillaz.SecureChat.Domain\Skillaz.SecureChat.Domain.fsproj" />
       <ProjectReference Include="Skillaz.SecureChat.P2P\Skillaz.SecureChat.P2P.fsproj" />
     </ItemGroup>
 </Project>

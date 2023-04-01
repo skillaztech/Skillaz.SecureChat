@@ -20,7 +20,7 @@ open Avalonia.FuncUI
 open Avalonia.Controls
 open NLog
 open Skillaz.SecureChat.ChatArgs
-open Skillaz.SecureChat.Message
+open Skillaz.SecureChat.Domain.Domain
 open Skillaz.SecureChat.P2P
 
 module Chat =
@@ -495,8 +495,8 @@ module Chat =
                     |> Array.Parallel.map (fun conn ->
                         try
                             let msg = {
-                                MessageSender = model.UserName
-                                UserId = model.UserId
+                                SenderUserName = model.UserName
+                                SenderUserId = model.UserId
                                 SecretCode = model.SecretCode
                                 RetranslationInfo = {
                                     RetranslatedBy = [ model.UserId ]
@@ -530,14 +530,14 @@ module Chat =
                 logger.Debug $"[AlivePackageReceived] I am alive package {msg} not being retranslated by this app. Retranslating..."
                 
                 let apps =
-                    if model.SecretCode = msg.SecretCode && msg.UserId <> model.UserId
+                    if model.SecretCode = msg.SecretCode && msg.SenderUserId <> model.UserId
                     then
                         logger.Debug $"[AlivePackageReceived] I am alive package {msg} for me. Updating connection lifetime..."
                         
                         model.ConnectedUsers
                         |> List.upsert
-                               (fun o -> o.UserId = msg.UserId)
-                               { AppName = msg.MessageSender; UserId = msg.UserId; ConnectedTill = DateTime.Now.AddSeconds(4) }
+                               (fun o -> o.UserId = msg.SenderUserId)
+                               { AppName = msg.SenderUserName; UserId = msg.SenderUserId; ConnectedTill = DateTime.Now.AddSeconds(4) }
                                
                     else
                         model.ConnectedUsers
@@ -557,11 +557,11 @@ module Chat =
             if not <| String.IsNullOrWhiteSpace(model.MessageInput)
             then
                 let newMsg = {
-                    DateTime = DateTime.Now
+                    SendingDateTime = DateTime.Now
                     MessageText = model.MessageInput
-                    MessageSender = model.UserName
+                    SenderUserName = model.UserName
                     SecretCode = model.SecretCode
-                    UserId = model.UserId
+                    SenderUserId = model.UserId
                     RetranslationInfo = {
                         RetranslatedBy = [ model.UserId ]
                     }
@@ -849,7 +849,7 @@ module Chat =
                                                             TextBlock.create [
                                                                 let classes = [ "chat-msg-sender" ] @ if m.IsMe then [ "me" ] else [ ]
                                                                 TextBlock.classes classes
-                                                                TextBlock.text $"{m.Message.MessageSender}        {m.Message.DateTime.ToShortDateString()} {m.Message.DateTime.ToShortTimeString()}"
+                                                                TextBlock.text $"{m.Message.SenderUserName}        {m.Message.SendingDateTime.ToShortDateString()} {m.Message.SendingDateTime.ToShortTimeString()}"
                                                             ]
                                                         ]
                                                     ]
