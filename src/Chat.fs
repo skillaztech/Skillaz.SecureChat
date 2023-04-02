@@ -18,7 +18,6 @@ open Avalonia.Layout
 open Elmish
 open Avalonia.FuncUI
 open Avalonia.Controls
-open NLog
 open Skillaz.SecureChat.ChatArgs
 open Skillaz.SecureChat.Domain.Domain
 open Skillaz.SecureChat.P2P
@@ -66,8 +65,6 @@ module Chat =
         Connections: ConnectedEndpoint list
         ConnectedUsers: ConnectedApp list
         SettingsVisible: bool
-        AppSettingsFilePath: string
-        UserSettingsFilePath: string
         ChatScrollViewOffset: float
         MessagesListHashSet: Set<int>
     }
@@ -162,82 +159,9 @@ module Chat =
         
         handlePackages client dispatch |> Async.Start
     
-    let init (args: ChatArgs) =        
-        logger.Info $"[init] Start app init into {args.ProcessDirectory}"
-        logger.Info $"[init] Version: {args.Version}"
+    let init (args: ChatArgs) =
         
-        let appSettings = Configuration.AppSettings()
-        let appSettingsFilePath = Path.Join(args.ProcessDirectory, "appsettings.yaml")
-        if File.Exists(appSettingsFilePath)
-        then
-            try
-                logger.Info $"[init] Loading application settings from {appSettingsFilePath}"
-                appSettings.Load(appSettingsFilePath)
-            with
-            | e ->
-                logger.FatalException e "[init] Application settings loading failed with an exception. Loading defaults."
-        
-        if appSettings.MaxChatMessageLength = 0 then appSettings.MaxChatMessageLength <- 3000
-        if appSettings.ClientTcpPort = 0 then appSettings.ClientTcpPort <- 63211
-        if appSettings.ListenerTcpPort = 0 then appSettings.ListenerTcpPort <- 63211
-        
-        logger.Info $"[init] Loaded application settings: {appSettings}"
-        
-        let userSettings = Configuration.UserSettings()
-        let userSettingsFilePath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "/ssc/", "usersettings.yaml")
-        if not <| File.Exists(userSettingsFilePath)
-        then
-            logger.Info $"[init] User settings file does not exists in path {userSettingsFilePath}, creating..."
-            
-            Directory.CreateDirectory(Path.GetDirectoryName(userSettingsFilePath)) |> ignore
-            
-            userSettings.UserId <- Guid.NewGuid()
-            userSettings.Name <- Environment.UserName
-            userSettings.SecretCode <- Random.Shared.Next(100000, 999999)
-            userSettings.LogLevel <- "Info"
-            
-            userSettings.Save(userSettingsFilePath)
-        
-        logger.Info $"[init] Loading user settings from {userSettingsFilePath}..."
-        
-        try
-            userSettings.Load(userSettingsFilePath)
-        with
-        | e ->
-            logger.FatalException e $"[init] User settings loading from {userSettingsFilePath} failed with an error. Exiting..."
-            reraise()
-            
-        if userSettings.Name = String.Empty then userSettings.Name <- Environment.UserName
-        if userSettings.SecretCode = 0 then userSettings.SecretCode <- Random.Shared.Next(100000, 999999)
-        if userSettings.UserId = Guid.Empty then userSettings.UserId <- Guid.NewGuid()
-            
-        logger.Info $"[init] User settings loaded from path {userSettingsFilePath}. Loaded user settings {userSettings}"
-        
-        let logLevelFromUserSettings =
-            match userSettings.LogLevel with
-            | "Trace" -> LogLevel.Trace
-            | "Debug" -> LogLevel.Debug
-            | "Info" -> LogLevel.Info
-            | "Warn" -> LogLevel.Warn
-            | "Error" -> LogLevel.Error
-            | "Fatal" -> LogLevel.Fatal
-            | _ -> LogLevel.Info
-        
-        LogManager.Configuration.LoggingRules
-        |> Seq.iter (fun o -> o.SetLoggingLevels(logLevelFromUserSettings, LogLevel.Fatal))
-        LogManager.ReconfigExistingLoggers()
-        
-        logger.Info $"[init] Log level from user settings enabled {logLevelFromUserSettings}"
-        
-        let unixSocketsFolder =
-            if args.OsDetector.IsLinux() || args.OsDetector.IsMacOS()
-            then "/tmp/ssc/"
-            else Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "/ssc/")
-            
-        logger.Debug $"[init] Directory for unix sockets chosen as {unixSocketsFolder}"
-        
-        let unixSocketFilePath =
-            Path.Join(unixSocketsFolder, $"{Environment.UserName}-{userSettings.UserId.ToString()}.socket")
+        let unixSocketFilePath = Path.Join(args.UnixSocketsFolderPath, args.UnixSocketsFileName)
             
         logger.Info $"[init] Unix socket file path for current user selected as {unixSocketFilePath}"
         
@@ -260,21 +184,19 @@ module Chat =
                 
         args.ApplicationLifetime.Exit.AddHandler(exitHandler)
         
-        let knownRemotePeers = appSettings.KnownRemotePeers |> Seq.map IPEndPoint.Parse |> List.ofSeq
-        
         let model = {
             Args = args
-            KnownPeers = knownRemotePeers
-            ListenerPort = appSettings.ListenerTcpPort
-            ClientPort = appSettings.ClientTcpPort
-            SecretCode = userSettings.SecretCode
-            UserName = userSettings.Name
+            KnownPeers = args.AppSettings.KnownRemotePeers
+            ListenerPort = args.AppSettings.ListenerTcpPort
+            ClientPort = args.AppSettings.ClientTcpPort
+            SecretCode = args.UserSettings.SecretCode
+            UserName = args.UserSettings.Name
             UserNameValidationErrors = []
-            UserId = userSettings.UserId.ToString()
-            MaxChatMessageLength = appSettings.MaxChatMessageLength
+            UserId = args.UserSettings.UserId.ToString()
+            MaxChatMessageLength = args.AppSettings.MaxChatMessageLength
             TcpListener = tcpListener
             UnixSocketListener = unixSocketListener
-            UnixSocketFolder = unixSocketsFolder
+            UnixSocketFolder = args.UnixSocketsFolderPath
             UnixSocketFilePath = unixSocketFilePath
             Connections = []
             ConnectedUsers = []
@@ -282,8 +204,6 @@ module Chat =
             MessagesList = []
             MessagesListHashSet = Set.empty
             SettingsVisible = false
-            AppSettingsFilePath = appSettingsFilePath
-            UserSettingsFilePath = userSettingsFilePath
             ChatScrollViewOffset = 0
         }
         
@@ -659,18 +579,18 @@ module Chat =
             else { model with UserName = userName; UserNameValidationErrors = validationErrors }, Cmd.none
         
         | SaveUserSettingsToConfig ->
+            let userSettings = {
+                UserId = model.UserId
+                Name = model.UserName
+                SecretCode = model.SecretCode
+            }
             
             try
-                let us = Configuration.UserSettings()
-                us.Load(model.UserSettingsFilePath)
-                us.Name <- model.UserName
-                us.SecretCode <- model.SecretCode
-                us.Save()
-                
-                logger.Info $"User settings are changed and saved: {us}"
+                model.Args.ConfigStorage.SaveUserSettings userSettings
+                logger.Info $"User settings are changed and saved: {userSettings}"
             with
             | e ->
-                logger.ErrorException e $"Can't update user settings"
+                logger.ErrorException e $"Can't update user settings: {userSettings}"
             
             model, Cmd.none
 

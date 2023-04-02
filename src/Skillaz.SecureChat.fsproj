@@ -18,13 +18,14 @@
     <ItemGroup>
         <Compile Include="ListHelpers.fs" />
         <Compile Include="Logger.fs" />
-        <Compile Include="IO\IOsDetector.fs" />
-        <Compile Include="Configuration.fs" />
-        <Content Include="appsettings.yaml" />
+        <Compile Include="IConfigStorage.fs" />
+        <Compile Include="FileConfiguration.fs" />
         <Compile Include="ChatArgs.fs" />
         <Compile Include="Chat.fs" />
         <Compile Include="Program.fs" />
         <AvaloniaResource Include="Styles.xaml" />
+        <Content Include="appsettings.yaml" />
+        <Content Include="usersettings.yaml" />
         <Content Include="..\logo.ico">
           <Link>logo.ico</Link>
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>

@@ -1,11 +1,15 @@
 ﻿module Skillaz.SecureChat.ChatArgs
 
 open Avalonia.Controls.ApplicationLifetimes
-open Skillaz.SecureChat.IO.IOsDetector
+open Skillaz.SecureChat.Domain.Domain
+open Skillaz.SecureChat.IConfigStorage
     
 type ChatArgs = {
     ApplicationLifetime: IControlledApplicationLifetime
-    Version: string
     ProcessDirectory: string
-    OsDetector: IOsDetector
+    AppSettings : AppSettings
+    UserSettings : UserSettings
+    UnixSocketsFolderPath : string
+    UnixSocketsFileName : string
+    ConfigStorage : IConfigStorage
 }
