@@ -9,6 +9,12 @@ Peer-to-peer chat application for network communication with ability to setup da
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/skillaztech/skillaz.securechat)
 ![GitHub all releases](https://img.shields.io/github/downloads/skillaztech/skillaz.securechat/total?color=blue)
 
+### Table of Contents
+- [Problem](#problem)
+- [Solution](#solution)
+- [Quick Start](#quick-start)
+- [Launch installers](#launch-installers)
+
 ## Problem
 Imagine, you have a single terminal server that you use to access some protected environment, for example, RDP-server. 
 Also you have a lot of sensitive data under that protected environment. In common case limited access to that information is allowed and needed,
