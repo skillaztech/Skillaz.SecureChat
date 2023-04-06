@@ -10,6 +10,6 @@ type ChatArgs = {
     AppSettings : AppSettings
     UserSettings : UserSettings
     UnixSocketsFolderPath : string
-    UnixSocketsFileName : string
+    UnixSocketFilePath : string
     ConfigStorage : IConfigStorage
 }

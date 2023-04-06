@@ -161,11 +161,7 @@ module Chat =
     
     let init (args: ChatArgs) =
         
-        let unixSocketFilePath = Path.Join(args.UnixSocketsFolderPath, args.UnixSocketsFileName)
-            
-        logger.Info $"[init] Unix socket file path for current user selected as {unixSocketFilePath}"
-        
-        let unixSocketListener = UnixSocket.listener unixSocketFilePath
+        let unixSocketListener = UnixSocket.listener args.UnixSocketFilePath
         let tcpListener = Tcp.listener
         
         let exitHandler _ _ =
@@ -197,7 +193,7 @@ module Chat =
             TcpListener = tcpListener
             UnixSocketListener = unixSocketListener
             UnixSocketFolder = args.UnixSocketsFolderPath
-            UnixSocketFilePath = unixSocketFilePath
+            UnixSocketFilePath = args.UnixSocketFilePath
             Connections = []
             ConnectedUsers = []
             MessageInput = ""
@@ -213,7 +209,7 @@ module Chat =
             model.UnixSocketListener.Listen()
         with
         | e ->
-            logger.FatalException e $"[init] Starting unix socket listener on path {unixSocketFilePath} failed. Exiting..."
+            logger.FatalException e $"[init] Starting unix socket listener on path {args.UnixSocketFilePath} failed. Exiting..."
             reraise()
         
         logger.Debug $"[init] Unix socket listener started."

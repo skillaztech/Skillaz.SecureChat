@@ -13,7 +13,6 @@ open Avalonia.FuncUI
 open Avalonia.Themes.Fluent
 open Avalonia.FuncUI.Hosts
 open Avalonia.FuncUI.Elmish
-open FSharp.Configuration
 open NLog
 open Skillaz.SecureChat.ChatArgs
 open Skillaz.SecureChat.Domain.Domain
@@ -90,7 +89,7 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
 
             logger.Info $"[MainWindow] Log level from user settings enabled {logLevelFromUserSettings}"
             
-            logger.Info $"[init] Loaded user settings {userSettings}"
+            logger.Info $"[MainWindow] Loaded user settings {userSettings}"
 
             {
                 UserId = userSettings.UserId.ToString()
@@ -129,11 +128,14 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
                 then "/tmp/ssc/"
                 else Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "/ssc/")
                 
-            logger.Debug $"[init] Directory for unix sockets chosen as {path}"
+            logger.Debug $"[MainWindow] Directory for unix sockets chosen as {path}"
             
             path
             
         let unixSocketFileName = $"{Environment.UserName}-{userSettings.UserId}.socket"
+        let unixSocketFilePath = Path.Join(unixSocketsFolderPath, unixSocketFileName)
+            
+        logger.Info $"[MainWindow] Unix socket file path for current user selected as {unixSocketFilePath}"
         
         let args = {
             ApplicationLifetime = lifeTime
@@ -141,7 +143,7 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
             AppSettings = appSettings
             UserSettings = userSettings
             UnixSocketsFolderPath = unixSocketsFolderPath
-            UnixSocketsFileName = unixSocketFileName
+            UnixSocketFilePath = unixSocketFilePath
             ConfigStorage = {
                 new IConfigStorage with
                     member this.SaveUserSettings userSettings =
