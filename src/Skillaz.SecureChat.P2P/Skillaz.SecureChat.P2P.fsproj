@@ -6,9 +6,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="P2Primitives.fs" />
+        <Compile Include="P2PConfig.fs" />
         <Compile Include="P2PNetwork.fs" />
         <Compile Include="UnixSocket.fs" />
         <Compile Include="Tcp.fs" />
+        <Compile Include="P2P.fs" />
     </ItemGroup>
 
     <ItemGroup>
