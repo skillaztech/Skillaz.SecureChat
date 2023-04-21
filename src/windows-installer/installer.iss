@@ -51,7 +51,6 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 Source: "..\bin\Release\net6.0\win-x64\*.dll"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-Source: "..\bin\Release\net6.0\win-x64\*.yaml"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "..\bin\Release\net6.0\win-x64\*.exe"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "..\..\logo.ico"; DestDir: "{app}"; Flags: ignoreversion
 
