@@ -4,6 +4,7 @@ open System.Net.Sockets
 open Avalonia.Controls.ApplicationLifetimes
 open Skillaz.SecureChat.Chat
 open Skillaz.SecureChat.ChatArgs
+open Skillaz.SecureChat.IConfigStorage
 
 let emptyArgs = {
     ApplicationLifetime = {
@@ -19,7 +20,7 @@ let emptyArgs = {
     AppSettings = failwith "todo"
     UserSettings = failwith "todo"
     UnixSocketsFolderPath = failwith "todo"
-    UnixSocketsFileName = failwith "todo"
+    UnixSocketFilePath = failwith "todo"
 }
 
 let emptyModel = {
