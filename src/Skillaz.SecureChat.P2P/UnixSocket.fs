@@ -9,8 +9,13 @@ open Mono.Unix
 
 module UnixSocket =
     
-    let listener (path:string) =
-        let directoryPath = Path.GetDirectoryName(path)
+    let listener =
+        let socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP)
+        socket.SendTimeout <- P2PNetwork.defaultSocketTimeoutMs
+        socket
+        
+    let tryBindTo (socketFilePath: string) (socket: Socket) =
+        let directoryPath = Path.GetDirectoryName(socketFilePath)
         
         let isUnix = OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
         
@@ -29,24 +34,20 @@ module UnixSocket =
                     accessControl.AddAccessRule(FileSystemAccessRule(SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.FullControl, InheritanceFlags.ObjectInherit ||| InheritanceFlags.ContainerInherit, PropagationFlags.NoPropagateInherit, AccessControlType.Allow));
                     directory.SetAccessControl(accessControl)
         
-        File.Delete(path)
+        File.Delete(socketFilePath)
         
-        let socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP)
-        socket.SendTimeout <- P2PNetwork.defaultSocketTimeoutMs
-        socket.Bind(UnixDomainSocketEndPoint(path))
+        socket.Bind(UnixDomainSocketEndPoint(socketFilePath))
         
         if isUnix
         then
-            let fileInfo = UnixFileInfo(path)
+            let fileInfo = UnixFileInfo(socketFilePath)
             fileInfo.FileAccessPermissions <-FileAccessPermissions.AllPermissions
             fileInfo.Refresh()
         else
-            let fileInfo = FileInfo(path)
+            let fileInfo = FileInfo(socketFilePath)
             let fileAccessControl = fileInfo.GetAccessControl()
             fileAccessControl.AddAccessRule(FileSystemAccessRule(SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.FullControl, InheritanceFlags.None, PropagationFlags.NoPropagateInherit, AccessControlType.Allow));
             fileInfo.SetAccessControl(fileAccessControl)
-
-        socket
         
     let client =
         let socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP)

@@ -132,7 +132,7 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
             
             path
             
-        let unixSocketFileName = $"{Environment.UserName}-{userSettings.UserId}.socket"
+        let unixSocketFileName = $"ssc.socket"
         let unixSocketFilePath = Path.Join(unixSocketsFolderPath, unixSocketFileName)
             
         logger.Info $"[MainWindow] Unix socket file path for current user selected as {unixSocketFilePath}"
