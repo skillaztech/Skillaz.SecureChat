@@ -49,11 +49,49 @@ If you have `123456` secret code on the first machine, you should set equal secr
 
 This allows to create groups of users that able to move from one group to another by changing their secret code if they are located in same network.
 
+### Application settings
+Application has built-in settings that could be override in config file `appsettings.yaml`. 
+Note that you should create it and place in directory with application executable to apply settings override.
+```yaml
+MaxChatMessageLength: 3000 # max chat message length available to transfer through chat
+ListenerTcpPort: 63211 # server tcp/ip port to listen incoming connections
+ClientTcpPort: 63211 # client tcp/ip port to connect to remote servers
+KnownRemotePeers:
+  - 1.2.3.4:63211 # List of remote peers to connect
+```
+
+### User settings
+When user launch application for the first time file `usersettings.yaml` generates automatically.
+
+File creates in these folders:
+
+Linux: `/home/<username>/.local/share/ssc/usersettings.yaml`  
+MacOS: `/Users/<username>/.local/share/ssc/usersettings.yaml`  
+Windows: `C:\Users\<username>\AppData\Local\ssc\usersettings.yaml`
+
+With this content:
+
+```yaml
+UserId: 00000000-0000-0000-0000-000000000000 # unique user identifier (GUID). Not recommended to change.
+Name: "user_name" # username (default - your username providing by OS). Can be changed through GUI
+SecretCode: 123456 # secret code. Can be changed through GUI
+LogLevel: "Info" # log level
+```
+
 ### Logs
 Default logs directories:
 
 Linux: `/home/<username>/.local/share/ssc/logs`  
+MacOS: `/Users/<username>/.local/share/ssc/logs`  
 Windows: `C:\Users\<username>\AppData\Local\ssc\logs`
+
+Available log levels (to setup in usersettings.yaml):
+- Trace
+- Debug
+- Info
+- Warning
+- Error
+- Fatal
 
 # Launch installers
 
@@ -108,12 +146,17 @@ Windows: `C:\Users\<username>\AppData\Local\ssc\logs`
     ```
 
 ### Create .deb package
-1. Execute this to create deb package:
+1. Go to sources folder
+   ```shell
+   cd src
+   ```
+
+2. Execute this to create deb package:
     ```shell
     dotnet deb -r ubuntu-x64 -c Release
     ```
 
-2. Next move this package to target machine:
+3. Next move this package to target machine:
     ```shell
     scp -i <path to pkey file for ssh authorization> <path to .deb> <remote login>@<target machine remote address>:<target file path .deb file>
     ```
