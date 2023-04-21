@@ -433,8 +433,6 @@ module Chat =
                         try
                             let msg = {
                                 MessageSender = model.UserName
-                                SenderUserName = model.UserName
-                                SenderUserId = model.UserId
                                 UserId = model.UserId
                                 SecretCode = model.SecretCode
                                 RetranslationInfo = {
@@ -469,14 +467,14 @@ module Chat =
                 logger.Debug $"[AlivePackageReceived] I am alive package {msg} not being retranslated by this app. Retranslating..."
                 
                 let apps =
-                    if model.SecretCode = msg.SecretCode && msg.SenderUserId <> model.UserId
+                    if model.SecretCode = msg.SecretCode && msg.UserId <> model.UserId
                     then
                         logger.Debug $"[AlivePackageReceived] I am alive package {msg} for me. Updating connection lifetime..."
                         
                         model.ConnectedUsers
                         |> List.upsert
-                               (fun o -> o.UserId = msg.SenderUserId)
-                               { AppName = msg.SenderUserName; UserId = msg.SenderUserId; ConnectedTill = DateTime.Now.AddSeconds(4) }
+                               (fun o -> o.UserId = msg.UserId)
+                               { AppName = msg.MessageSender; UserId = msg.UserId; ConnectedTill = DateTime.Now.AddSeconds(4) }
                                
                     else
                         model.ConnectedUsers
@@ -496,20 +494,17 @@ module Chat =
             if not <| String.IsNullOrWhiteSpace(model.MessageInput)
             then
                 let newMsg = {
-                    SendingDateTime = DateTime.Now
                     DateTime = DateTime.Now
                     MessageText = model.MessageInput
-                    SenderUserName = model.UserName
                     MessageSender = model.UserName
                     SecretCode = model.SecretCode
                     UserId = model.UserId
-                    SenderUserId = model.UserId
                     RetranslationInfo = {
                         RetranslatedBy = [ model.UserId ]
                     }
                 }
                 
-                logger.Info $"[SendMessage] Sending new message {newMsg} to all connected clients {model.Connections}..."
+                logger.Info $"[SendMessage] Sending new message {newMsg} to all connected clients %A{model.Connections}..."
                 
                 model.Connections
                 |> List.iter (fun ce ->
@@ -791,7 +786,7 @@ module Chat =
                                                             TextBlock.create [
                                                                 let classes = [ "chat-msg-sender" ] @ if m.IsMe then [ "me" ] else [ ]
                                                                 TextBlock.classes classes
-                                                                TextBlock.text $"{m.Message.SenderUserName}        {m.Message.SendingDateTime.ToShortDateString()} {m.Message.SendingDateTime.ToShortTimeString()}"
+                                                                TextBlock.text $"{m.Message.MessageSender}        {m.Message.DateTime.ToShortDateString()} {m.Message.DateTime.ToShortTimeString()}"
                                                             ]
                                                         ]
                                                     ]

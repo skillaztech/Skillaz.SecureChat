@@ -25,26 +25,34 @@ module Domain =
         RetranslatedBy: UserId list
     }
     
+    /// Chat message 
     type AliveMessage = {
-        SenderUserId: UserId
-        [<Obsolete("Old field")>] UserId: string
-        SenderUserName: UserName
-        [<Obsolete("Old field")>] MessageSender: string
+        /// Alive message sender user id
+        UserId: UserId
+        /// Alive message sender user name
+        MessageSender: UserName
+        /// Alive message sender secret code
         SecretCode: SecretCode
+        /// Alive message retranslation info
         RetranslationInfo: RetranslationInfo
     }
     
+    /// Chat message 
     type ChatMessage =
         {
-            SenderUserId: UserId
-            [<Obsolete("Old field")>] UserId: string
-            SenderUserName: UserName
-            [<Obsolete("Old field")>] MessageSender: string
+            /// Chat message sender user id
+            UserId: UserId
+            /// Chat message sender user name
+            MessageSender: UserName
+            /// Chat message sender secret code
             SecretCode: SecretCode
+            /// Chat message retranslation info
             RetranslationInfo: RetranslationInfo
-            SendingDateTime: DateTime
-            [<Obsolete("Old field")>] DateTime: DateTime
+            /// Chat message sending date and time
+            DateTime: DateTime
+            /// Chat message text
             MessageText: string
         }
         
-        member this.GetHalfHashCode() = hash <| this.MessageText + this.SenderUserId + this.SendingDateTime.Ticks.ToString() + this.SecretCode.ToString()
+        /// Rewrite comparison function required for messages deduplication
+        member this.GetHalfHashCode() = hash <| this.MessageText + this.UserId + this.DateTime.Ticks.ToString() + this.SecretCode.ToString()
