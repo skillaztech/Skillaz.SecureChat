@@ -432,8 +432,10 @@ module Chat =
                     |> Array.Parallel.map (fun conn ->
                         try
                             let msg = {
+                                MessageSender = model.UserName
                                 SenderUserName = model.UserName
                                 SenderUserId = model.UserId
+                                UserId = model.UserId
                                 SecretCode = model.SecretCode
                                 RetranslationInfo = {
                                     RetranslatedBy = [ model.UserId ]
@@ -495,9 +497,12 @@ module Chat =
             then
                 let newMsg = {
                     SendingDateTime = DateTime.Now
+                    DateTime = DateTime.Now
                     MessageText = model.MessageInput
                     SenderUserName = model.UserName
+                    MessageSender = model.UserName
                     SecretCode = model.SecretCode
+                    UserId = model.UserId
                     SenderUserId = model.UserId
                     RetranslationInfo = {
                         RetranslatedBy = [ model.UserId ]

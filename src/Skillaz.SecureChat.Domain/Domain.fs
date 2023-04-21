@@ -27,7 +27,9 @@ module Domain =
     
     type AliveMessage = {
         SenderUserId: UserId
+        [<Obsolete("Old field")>] UserId: string
         SenderUserName: UserName
+        [<Obsolete("Old field")>] MessageSender: string
         SecretCode: SecretCode
         RetranslationInfo: RetranslationInfo
     }
@@ -35,10 +37,13 @@ module Domain =
     type ChatMessage =
         {
             SenderUserId: UserId
+            [<Obsolete("Old field")>] UserId: string
             SenderUserName: UserName
+            [<Obsolete("Old field")>] MessageSender: string
             SecretCode: SecretCode
             RetranslationInfo: RetranslationInfo
             SendingDateTime: DateTime
+            [<Obsolete("Old field")>] DateTime: DateTime
             MessageText: string
         }
         
