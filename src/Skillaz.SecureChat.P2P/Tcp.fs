@@ -7,6 +7,7 @@ module Tcp =
     
     let listener =
         let socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+        socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true)
         socket.SendTimeout <- P2PNetwork.defaultSocketTimeoutMs
         socket
         
