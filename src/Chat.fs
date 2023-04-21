@@ -169,11 +169,11 @@ module Chat =
         let exitHandler _ _ =
             try
                 let path = unixSocketListener.LocalEndPoint.ToString()
-                logger.Info $"[exitHandler] Application exits. Disposing and deleting unix socket: {path}."
                 
+                logger.Info $"[exitHandler] Application exits. Disposing unix socket: {path}."
                 unixSocketListener.Dispose()
                 
-                logger.Info $"[exitHandler] Disposing tcp listener"
+                logger.Info $"[exitHandler] Disposing tcp listener: {tcpListener.LocalEndPoint}"
                 tcpListener.Dispose()
             with
             | e ->
