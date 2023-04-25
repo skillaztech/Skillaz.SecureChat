@@ -1,5 +1,6 @@
 ﻿MaxChatMessageLength: 3000
 ListenerTcpPort: 63211
 ClientTcpPort: 63211
+LogLevel: Off
 KnownRemotePeers:
   - 10.132.1.5:63211

@@ -168,7 +168,7 @@ module Chat =
         
         let exitHandler _ _ =
             try
-                let path = unixSocketListener.LocalEndPoint.ToString()
+                let path = unixSocketListener.LocalEndPoint
                 
                 logger.Info $"[exitHandler] Application exits. Disposing unix socket: {path}."
                 unixSocketListener.Dispose()
@@ -271,7 +271,7 @@ module Chat =
                         UnixSocket.tryBindTo model.UnixSocketFilePath model.UnixSocketListener
                         model.UnixSocketListener.Listen()
                         
-                        logger.Info $"[StartLaunchListenLocalConnectionsLoop] Unix socket listener started on port {model.ListenerPort}"
+                        logger.Info $"[StartLaunchListenLocalConnectionsLoop] Unix socket listener started on file {model.UnixSocketFilePath}"
                         return Result.Ok ()
                     with
                     | e ->

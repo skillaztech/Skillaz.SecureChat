@@ -27,21 +27,19 @@ module UnixSocket =
             if isUnix
                 then
                     let directoryInfo = UnixDirectoryInfo(directoryPath)
-                    directoryInfo.FileAccessPermissions <-FileAccessPermissions.AllPermissions
+                    directoryInfo.FileAccessPermissions <- FileAccessPermissions.AllPermissions
                     directoryInfo.Refresh()
                 else
                     let accessControl = directory.GetAccessControl()
                     accessControl.AddAccessRule(FileSystemAccessRule(SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.FullControl, InheritanceFlags.ObjectInherit ||| InheritanceFlags.ContainerInherit, PropagationFlags.NoPropagateInherit, AccessControlType.Allow));
                     directory.SetAccessControl(accessControl)
         
-        File.Delete(socketFilePath)
-        
         socket.Bind(UnixDomainSocketEndPoint(socketFilePath))
         
         if isUnix
         then
             let fileInfo = UnixFileInfo(socketFilePath)
-            fileInfo.FileAccessPermissions <-FileAccessPermissions.AllPermissions
+            fileInfo.FileAccessPermissions <- FileAccessPermissions.AllPermissions
             fileInfo.Refresh()
         else
             let fileInfo = FileInfo(socketFilePath)

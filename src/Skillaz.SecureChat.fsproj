@@ -12,7 +12,7 @@
         <NeutralLanguage>ru</NeutralLanguage>
         <ApplicationIcon>..\logo.ico</ApplicationIcon>
         <UseAppHost>true</UseAppHost>
-        <RuntimeIdentifiers>ubuntu-x64;win-x64;osx-x64</RuntimeIdentifiers>
+        <RuntimeIdentifiers>ubuntu-x64;fedora-x64;win-x64;osx-x64</RuntimeIdentifiers>
     </PropertyGroup>
 
     <ItemGroup>
@@ -39,7 +39,7 @@
         <AvaloniaResource Include="fonts\SkillazRegular.ttf" />
         <AvaloniaResource Include="fonts\SkillazRegularItalic.ttf" />
         <Content Include="windows-installer\installer.iss" />
-        <Content Include="ubuntu-installer\ssc.desktop">
+        <Content Include="linux-installer\ssc.desktop">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
           <LinuxPath>/usr/share/applications/ssc.desktop</LinuxPath>
         </Content>

@@ -13,6 +13,7 @@ module Domain =
         ListenerTcpPort : int
         ClientTcpPort : int
         KnownRemotePeers : IPEndPoint list
+        LogLevel : string
     }
 
     type UserSettings = {

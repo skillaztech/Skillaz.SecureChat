@@ -40,6 +40,33 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
 
         //this.VisualRoot.VisualRoot.Renderer.DrawFps <- true
         //this.VisualRoot.VisualRoot.Renderer.DrawDirtyRects <- true
+                    
+        let appSettings =
+            let appSettings = FileConfiguration.FileAppSettings()
+            let appSettingsFilePath = Path.Join(currentProcessDirectory, "appsettings.yaml")
+            if File.Exists(appSettingsFilePath)
+            then
+                try
+                    logger.Info $"[MainWindow] Loading application settings from {appSettingsFilePath}"
+                    appSettings.Load(appSettingsFilePath)
+                with
+                | e ->
+                    logger.FatalException e "[MainWindow] Application settings loading failed with an exception. Loading defaults."
+
+            if appSettings.MaxChatMessageLength = 0 then appSettings.MaxChatMessageLength <- 3000
+            if appSettings.ClientTcpPort = 0 then appSettings.ClientTcpPort <- 63211
+            if appSettings.ListenerTcpPort = 0 then appSettings.ListenerTcpPort <- 63211
+            
+            logger.Info $"[MainWindow] Loaded application settings: {appSettings}"
+
+            {
+                MaxChatMessageLength = appSettings.MaxChatMessageLength
+                ListenerTcpPort = appSettings.ListenerTcpPort
+                ClientTcpPort = appSettings.ClientTcpPort
+                LogLevel = appSettings.LogLevel
+                KnownRemotePeers = appSettings.KnownRemotePeers |> Seq.map IPEndPoint.Parse |> List.ofSeq
+            }
+            
         
         let userSettingsFilePath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "/ssc/", "usersettings.yaml")
                 
@@ -73,18 +100,26 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
             if userSettings.SecretCode = 0 then userSettings.SecretCode <- Random.Shared.Next(100000, 999999)
             if userSettings.UserId = Guid.Empty then userSettings.UserId <- Guid.NewGuid()
 
-            let logLevelFromUserSettings =
-                match userSettings.LogLevel with
+            let logLevelFrom logLevelStr defaultLogLevel =
+                match logLevelStr with
                 | "Trace" -> LogLevel.Trace
                 | "Debug" -> LogLevel.Debug
                 | "Info" -> LogLevel.Info
                 | "Warn" -> LogLevel.Warn
                 | "Error" -> LogLevel.Error
                 | "Fatal" -> LogLevel.Fatal
-                | _ -> LogLevel.Info
+                | _ -> defaultLogLevel
 
+            let logLevelFromAppSettings = logLevelFrom appSettings.LogLevel LogLevel.Off
+            let logLevelFromUserSettings = logLevelFrom userSettings.LogLevel LogLevel.Info
+            
+            let logLevel =
+                if logLevelFromAppSettings.Ordinal < logLevelFromUserSettings.Ordinal
+                then logLevelFromAppSettings
+                else logLevelFromUserSettings
+            
             LogManager.Configuration.LoggingRules
-            |> Seq.iter (fun o -> o.SetLoggingLevels(logLevelFromUserSettings, LogLevel.Fatal))
+            |> Seq.iter (fun o -> o.SetLoggingLevels(logLevel, LogLevel.Fatal))
             LogManager.ReconfigExistingLoggers()
 
             logger.Info $"[MainWindow] Log level from user settings enabled {logLevelFromUserSettings}"
@@ -95,31 +130,6 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
                 UserId = userSettings.UserId.ToString()
                 Name = userSettings.Name
                 SecretCode = userSettings.SecretCode
-            }
-            
-        let appSettings =
-            let appSettings = FileConfiguration.FileAppSettings()
-            let appSettingsFilePath = Path.Join(currentProcessDirectory, "appsettings.yaml")
-            if File.Exists(appSettingsFilePath)
-            then
-                try
-                    logger.Info $"[MainWindow] Loading application settings from {appSettingsFilePath}"
-                    appSettings.Load(appSettingsFilePath)
-                with
-                | e ->
-                    logger.FatalException e "[MainWindow] Application settings loading failed with an exception. Loading defaults."
-
-            if appSettings.MaxChatMessageLength = 0 then appSettings.MaxChatMessageLength <- 3000
-            if appSettings.ClientTcpPort = 0 then appSettings.ClientTcpPort <- 63211
-            if appSettings.ListenerTcpPort = 0 then appSettings.ListenerTcpPort <- 63211
-            
-            logger.Info $"[MainWindow] Loaded application settings: {appSettings}"
-
-            {
-                MaxChatMessageLength = appSettings.MaxChatMessageLength
-                ListenerTcpPort = appSettings.ListenerTcpPort
-                ClientTcpPort = appSettings.ClientTcpPort
-                KnownRemotePeers = appSettings.KnownRemotePeers |> Seq.map IPEndPoint.Parse |> List.ofSeq
             }
             
         let unixSocketsFolderPath =

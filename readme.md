@@ -56,6 +56,7 @@ Note that you should create it and place in directory with application executabl
 MaxChatMessageLength: 3000 # max chat message length available to transfer through chat
 ListenerTcpPort: 63211 # server tcp/ip port to listen incoming connections
 ClientTcpPort: 63211 # client tcp/ip port to connect to remote servers
+LogLevel: Off # global log level for all application users (used if this level is higher than user-specific in usersettings.yaml)
 KnownRemotePeers:
   - 1.2.3.4:63211 # List of remote peers to connect
 ```
@@ -100,7 +101,7 @@ Available log levels (to setup in usersettings.yaml):
 2. Go through installation wizard till the end
 3. Launch installed application
 
-## Linux
+## Linux (Ubuntu)
 1. On target machine execute this:
     ```shell
     sudo dpkg -i <path to .deb file on target machine>
@@ -108,7 +109,18 @@ Available log levels (to setup in usersettings.yaml):
 
 2. To show this app into applications menu you need to execute:
     ```shell
-    sudo cp /usr/share/Skillaz.SecureChat/ubuntu-installer/ssc.desktop /usr/share/applications/ssc.desktop
+    sudo cp /usr/share/Skillaz.SecureChat/linux-installer/ssc.desktop /usr/share/applications/ssc.desktop
+    ```
+   
+## Linux (Fedora)
+1. On target machine execute this:
+    ```shell
+    sudo rpm -i <path to .rpm file on target machine>
+    ```
+
+2. To show this app into applications menu you need to execute:
+    ```shell
+    sudo cp /usr/share/Skillaz.SecureChat/linux-installer/ssc.desktop /usr/share/applications/ssc.desktop
     ```
 
 ## MacOS
@@ -159,6 +171,30 @@ Available log levels (to setup in usersettings.yaml):
 3. Next move this package to target machine:
     ```shell
     scp -i <path to pkey file for ssh authorization> <path to .deb> <remote login>@<target machine remote address>:<target file path .deb file>
+    ```
+   
+## Linux RPM package
+### Prerequirements
+- [dotnet rpm](https://github.com/quamotion/dotnet-packaging)
+    ```shell
+    dotnet tool install --global dotnet-rpm
+    dotnet rpm install
+    ```
+
+### Create .rpm package
+1. Go to sources folder
+   ```shell
+   cd src
+   ```
+
+2. Execute this to create rpm package:
+    ```shell
+    dotnet rpm -r fedora-x64 -c Release
+    ```
+
+3. Next move this package to target machine:
+    ```shell
+    scp -i <path to pkey file for ssh authorization> <path to .rpm> <remote login>@<target machine remote address>:<target file path .rpm file>
     ```
 
 ## MacOS

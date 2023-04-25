@@ -64,9 +64,8 @@ jobs:
           path: src/windows-installer/Output/*.exe
           retention-days: 1
       
-      
   build_and_publish_linux:
-    name: Build and Deploy (ubuntu-x64)
+    name: Build and Deploy (ubuntu-x64,fedora-x64)
     runs-on: ubuntu-latest
     needs: [preparing_for_release]
     steps:
@@ -84,7 +83,7 @@ jobs:
           file: src/Skillaz.SecureChat.fsproj
           version: ${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}
 
-      - name: Install tools
+      - name: Install .deb packaging tools
         run: |
           echo "Install dotnet-deb tool..."
           dotnet tool install --global dotnet-deb
@@ -100,6 +99,24 @@ jobs:
         with:
           name: ubuntu-x64-installer
           path: ./src/bin/Release/net${{ env.DOTNET_VERSION }}/ubuntu-x64/*.deb
+          retention-days: 1
+
+      - name: Install .rpm packaging tools
+        run: |
+          echo "Install dotnet-rpm tool..."
+          dotnet tool install --global dotnet-rpm
+          echo "dotnet-rpm tool installed. Preparing solution..."
+          dotnet rpm install
+
+      - name: Build .rpm installer
+        working-directory: ./src
+        run: dotnet rpm -r fedora-x64 -c Release
+
+      - name: Publish .rpm installer
+        uses: actions/upload-artifact@v3
+        with:
+          name: fedora-x64-installer
+          path: ./src/bin/Release/net${{ env.DOTNET_VERSION }}/fedora-x64/*.rpm
           retention-days: 1
       
   build_and_publish_macos:
@@ -179,6 +196,8 @@ jobs:
           echo "exe_checksum=${exe}" >> "$GITHUB_OUTPUT"
           deb=$(sha512sum installers/ubuntu-x64-installer/*.deb | cut -d " " -f 1)
           echo "deb_checksum=${deb}" >> "$GITHUB_OUTPUT"
+          rpm=$(sha512sum installers/fedora-x64-installer/*.rpm | cut -d " " -f 1)
+          echo "rpm_checksum=${rpm}" >> "$GITHUB_OUTPUT"
           dmg=$(sha512sum installers/osx-x64-installer/*.dmg | cut -d " " -f 1)
           echo "dmg_checksum=${dmg}" >> "$GITHUB_OUTPUT"
           
@@ -193,11 +212,13 @@ jobs:
             |Alg|File|Hash|
             |:--:|:--:|:--:|
             |SHA512|Skillaz.SecureChat.${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.ubuntu-x64.deb|${{ steps.checksums.outputs.deb_checksum }}|
+            |SHA512|Skillaz.SecureChat.${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.fedora-x64.rpm|${{ steps.checksums.outputs.rpm_checksum }}|
             |SHA512|Skillaz.SecureChat.${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.win-x64.exe|${{ steps.checksums.outputs.exe_checksum }}|
             |SHA512|Skillaz.SecureChat.${{ needs.preparing_for_release.outputs.major }}.${{ needs.preparing_for_release.outputs.minor }}.${{ needs.preparing_for_release.outputs.patch }}.osx-x64.dmg|${{ steps.checksums.outputs.dmg_checksum }}|
           draft: false
           prerelease: false
           files: |
-            installers/win-x64-installer/*
             installers/ubuntu-x64-installer/*
+            installers/fedora-x64-installer/*
+            installers/win-x64-installer/*
             installers/osx-x64-installer/*
