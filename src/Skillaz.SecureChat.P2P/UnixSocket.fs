@@ -34,6 +34,7 @@ module UnixSocket =
                     accessControl.AddAccessRule(FileSystemAccessRule(SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.FullControl, InheritanceFlags.ObjectInherit ||| InheritanceFlags.ContainerInherit, PropagationFlags.NoPropagateInherit, AccessControlType.Allow));
                     directory.SetAccessControl(accessControl)
         
+        File.Delete(socketFilePath) // Required. Or we will get address already in use error.
         socket.Bind(UnixDomainSocketEndPoint(socketFilePath))
         
         if isUnix

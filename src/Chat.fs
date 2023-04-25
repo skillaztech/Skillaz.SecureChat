@@ -167,12 +167,7 @@ module Chat =
         let tcpListener = Tcp.listener
         
         let exitHandler _ _ =
-            try
-                let path = unixSocketListener.LocalEndPoint
-                
-                logger.Info $"[exitHandler] Application exits. Disposing unix socket: {path}."
-                unixSocketListener.Dispose()
-                
+            try                
                 logger.Info $"[exitHandler] Disposing tcp listener: {tcpListener.LocalEndPoint}"
                 tcpListener.Dispose()
             with
@@ -263,22 +258,33 @@ module Chat =
                 model, Cmd.ofMsg <| WaitThenSend (2000, StartLaunchListenRemoteConnectionsLoop)
         | StartLaunchListenLocalConnectionsLoop ->
             let tryListenLocalConnections _ = async {
-                if model.TcpListener.IsBound && not model.UnixSocketListener.IsBound
+                if model.TcpListener.IsBound
                 then
-                    try
-                        logger.Debug $"[StartLaunchListenLocalConnectionsLoop] Try to bind and start listening for unix socket local connections on file {model.UnixSocketFilePath}..."
-                        
-                        UnixSocket.tryBindTo model.UnixSocketFilePath model.UnixSocketListener
-                        model.UnixSocketListener.Listen()
-                        
-                        logger.Info $"[StartLaunchListenLocalConnectionsLoop] Unix socket listener started on file {model.UnixSocketFilePath}"
-                        return Result.Ok ()
-                    with
-                    | e ->
-                        logger.DebugException e $"[StartLaunchListenLocalConnectionsLoop] Failed to bind or start listening unix socket local connections on file {model.UnixSocketFilePath}"
+                    if not model.UnixSocketListener.IsBound
+                    then
+                        try
+                            logger.Debug $"[StartLaunchListenLocalConnectionsLoop] Try to bind and start listening for unix socket local connections on file {model.UnixSocketFilePath}..."
+                            
+                            UnixSocket.tryBindTo model.UnixSocketFilePath model.UnixSocketListener
+                            model.UnixSocketListener.Listen()
+                            
+                            logger.Info $"[StartLaunchListenLocalConnectionsLoop] Unix socket listener started on file {model.UnixSocketFilePath}"
+                            return Result.Ok ()
+                        with
+                        | :? ObjectDisposedException as e ->
+                            logger.DebugException e $"[StartLaunchListenRemoteConnectionsLoop] Unix socket possibly already has been disposed. Deleting unix socket file for recreation in future..."
+                            
+                            File.Delete(model.UnixSocketFilePath)
+                            
+                            return Result.Error ()
+                        | e ->
+                            logger.DebugException e $"[StartLaunchListenLocalConnectionsLoop] Failed to bind or start listening unix socket local connections on file {model.UnixSocketFilePath}"
+                            return Result.Error ()
+                    else
+                        logger.Debug $"[StartLaunchListenLocalConnectionsLoop] Already listening local unix socket connections. No additional actions required."
                         return Result.Error ()
                 else
-                    logger.Debug $"[StartLaunchListenLocalConnectionsLoop] Already listening local unix connections. No additional actions required."
+                    logger.Debug $"[StartLaunchListenLocalConnectionsLoop] Remote tcp listener is unbounded. No need to listen local peers."
                     return Result.Error ()
             }
             model, Cmd.OfAsync.perform tryListenLocalConnections () LaunchListenLocalConnectionsIterationFinished
