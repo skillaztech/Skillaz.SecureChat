@@ -4,6 +4,7 @@ open System
 open System.IO
 open System.Net
 open System.Reflection
+open System.Threading
 open Avalonia.Logging
 open Elmish
 open Avalonia
@@ -187,9 +188,16 @@ module Program =
 
     [<EntryPoint>]
     let main(args: string[]) =
-        AppBuilder
-            .Configure<App>()
-            .UsePlatformDetect()
-            .LogToTrace(LogEventLevel.Warning)
-            .UseSkia()
-            .StartWithClassicDesktopLifetime(args)
+        let mutexName = $"Global\\{Environment.UserName}"
+        let appUserInstanceAlreadyExists, _ = Mutex.TryOpenExisting(mutexName)
+        if appUserInstanceAlreadyExists
+        then
+            1 // Application instance for this user already launched
+        else
+            use mutex = new Mutex(false, mutexName)
+            AppBuilder
+                .Configure<App>()
+                .UsePlatformDetect()
+                .LogToTrace(LogEventLevel.Warning)
+                .UseSkia()
+                .StartWithClassicDesktopLifetime(args)
