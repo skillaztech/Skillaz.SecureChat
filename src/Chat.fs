@@ -103,7 +103,7 @@ module Chat =
             logger.Info $"[connectionsSubscription] New connection entering listener {socket.LocalEndPoint} from {socket.RemoteEndPoint}..."
             
             let connectedEndpoint = {
-                ConnectionId = socket.RemoteEndPoint.ToString()
+                ConnectionId = $"{socket.RemoteEndPoint}"
                 EndPoint = socket.RemoteEndPoint
                 Client = socket
             }
