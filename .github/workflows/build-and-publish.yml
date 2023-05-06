@@ -207,7 +207,7 @@ jobs:
           append_body: true
           body: |
             ## Protection
-            [Validation instruction](https://picolino.dev/gpg/gpg-signing/#sha-hash)
+            [Validation instruction](https://picolino.dev/posts/gpg-signing/#sha-hash)
 
             |Alg|File|Hash|
             |:--:|:--:|:--:|
