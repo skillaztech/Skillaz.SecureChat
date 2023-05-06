@@ -14,7 +14,7 @@ type InitializeSteps () =
     
     [<Given>]
     member _.``default configuration`` () =
-        args <- Some TestHelpers.emptyArgs
+        args <- Some ArgsBuilder.mkArgs
     
     [<When>]
     member _.``application starts`` () =

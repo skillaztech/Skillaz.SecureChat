@@ -10,7 +10,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="TestHelpers.fs" />
+        <Compile Include="ArgsBuilder.fs" />
+        <Compile Include="ModelBuilder.fs" />
         <EmbeddedResource Include="Initialize.feature" />
         <Compile Include="InitializeSteps.fs" />
         <Compile Include="Program.fs" />
