@@ -40,12 +40,6 @@ module Chat =
         Client: Socket
     }
     
-    type ConnectedApp = {
-        AppName: string
-        UserId: string
-        ConnectedTill: DateTime
-    }
-    
     type Model = {
         Args: ChatArgs
         UserName: string
@@ -63,7 +57,7 @@ module Chat =
         MessageInput: string
         MessagesList: LocalMessage list
         Connections: ConnectedEndpoint list
-        ConnectedUsers: ConnectedApp list
+        ConnectedUsers: ConnectedUser list
         SettingsVisible: bool
         ChatScrollViewOffset: float
         MessagesListHashSet: Set<int>
@@ -82,7 +76,7 @@ module Chat =
         | ClientsConnected of ConnectedEndpoint list
         | ClientDisconnected of Socket
         | StartCleanDeadAppsLoop
-        | DeadAppsCleanIterationFinished of ConnectedApp list
+        | DeadAppsCleanIterationFinished of ConnectedUser list
         | StartSendIAmAliveLoop
         | IAmAliveSendIterationFinished of ConnectedEndpoint list
         | AlivePackageReceived of AliveMessage * Socket
@@ -480,7 +474,7 @@ module Chat =
                         model.ConnectedUsers
                         |> List.upsert
                                (fun o -> o.UserId = msg.UserId)
-                               { AppName = msg.MessageSender; UserId = msg.UserId; ConnectedTill = DateTime.Now.AddSeconds(4) }
+                               { UserName = msg.MessageSender; UserId = msg.UserId; ConnectedTill = DateTime.Now.AddSeconds(4) }
                                
                     else
                         model.ConnectedUsers
@@ -656,7 +650,7 @@ module Chat =
                                     ]
                                 ]
                                 @ (model.ConnectedUsers
-                                    |> List.map (fun app ->
+                                    |> List.map (fun user ->
                                         StackPanel.create [
                                             StackPanel.spacing 5
                                             StackPanel.orientation Orientation.Vertical
@@ -669,7 +663,7 @@ module Chat =
                                                         onlineIndicator
                                                         TextBlock.create [
                                                             TextBlock.classes [ "connection"; "remote" ]
-                                                            TextBlock.text app.AppName
+                                                            TextBlock.text user.UserName
                                                         ]
                                                     ]
                                                 ]

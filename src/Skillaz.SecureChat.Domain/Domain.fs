@@ -35,6 +35,16 @@ module Domain =
         SecretCode: SecretCode
     }
     
+    /// Remote connected user
+    type ConnectedUser = {
+        /// Connected user name
+        UserName: string
+        /// Connected user identifier
+        UserId: string
+        /// If the current time goes beyond this date, then the user is considered disconnected.
+        ConnectedTill: DateTime
+    }
+    
     /// Message retranslation information
     type RetranslationInfo = {
         /// Users whom bypass current message
