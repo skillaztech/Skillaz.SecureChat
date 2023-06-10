@@ -4,25 +4,40 @@ open System
 open System.Net
 
 module Domain =
+    /// User unique identifier
     type UserId = string
+    /// User name
     type UserName = string
+    /// Secret code
     type SecretCode = int
 
+    /// Application settings
     type AppSettings = {
+        /// Maximum string length for message input
         MaxChatMessageLength : int
+        /// Server listener tcp port
         ListenerTcpPort : int
+        /// Client tcp port
         ClientTcpPort : int
+        /// Remote peers used to connect to the network
         KnownRemotePeers : IPEndPoint list
+        /// Log level [Trace;Debug;Info;Warning;Error;Fatal]
         LogLevel : string
     }
 
+    /// User settings
     type UserSettings = {
+        /// Unique user identifier
         UserId: UserId
+        /// User-defined name
         Name: UserName
+        /// Secret code to connect to user group
         SecretCode: SecretCode
     }
     
+    /// Message retranslation information
     type RetranslationInfo = {
+        /// Users whom bypass current message
         RetranslatedBy: UserId list
     }
     
