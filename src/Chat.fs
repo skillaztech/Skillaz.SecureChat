@@ -50,10 +50,8 @@ module Chat =
         ClientPort: int
         UserId: string
         MaxChatMessageLength: int
-        TcpListener: Socket
         UnixSocketFolder: string
         UnixSocketFilePath: string
-        UnixSocketListener: Socket
         MessageInput: string
         MessagesList: LocalMessage list
         Connections: ConnectedEndpoint list
@@ -157,13 +155,11 @@ module Chat =
     
     let init (args: ChatArgs) =
         
-        let unixSocketListener = UnixSocket.listener
-        let tcpListener = Tcp.listener
-        
         let exitHandler _ _ =
-            try                
-                logger.Info $"[exitHandler] Disposing tcp listener: {tcpListener.LocalEndPoint}"
-                tcpListener.Dispose()
+            try
+                let remoteListener = args.NetworkProvider.RemoteListener.Socket
+                logger.Info $"[exitHandler] Disposing tcp listener: {remoteListener.LocalEndPoint}"
+                remoteListener.Dispose()
             with
             | e ->
                 logger.FatalException e "[exitHandler] Application exiting failed."
@@ -180,8 +176,6 @@ module Chat =
             UserNameValidationErrors = []
             UserId = args.UserSettings.UserId.ToString()
             MaxChatMessageLength = args.AppSettings.MaxChatMessageLength
-            TcpListener = tcpListener
-            UnixSocketListener = unixSocketListener
             UnixSocketFolder = args.UnixSocketsFolderPath
             UnixSocketFilePath = args.UnixSocketFilePath
             Connections = []
@@ -216,13 +210,13 @@ module Chat =
             model, Cmd.OfAsync.perform waitTask msToWait (fun _ -> msg)
         | StartLaunchListenRemoteConnectionsLoop ->
             let tryListenRemoteConnections _ = async {
-                if not model.TcpListener.IsBound
+                if not <| model.Args.NetworkProvider.RemoteListener.IsBound
                 then
                     try
                         logger.Debug $"[StartLaunchListenRemoteConnectionsLoop] Try to bind and start listening for tcp remote connections on port {model.ListenerPort}..."
                         
-                        Tcp.tryBindTo IPAddress.Any model.ListenerPort model.TcpListener
-                        model.TcpListener.Listen()
+                        model.Args.NetworkProvider.RemoteListener.BindTo(IPEndPoint(IPAddress.Any, model.ListenerPort))
+                        model.Args.NetworkProvider.RemoteListener.StartListen()
                         
                         logger.Info $"[StartLaunchListenRemoteConnectionsLoop] Tcp listener started on port {model.ListenerPort}"
                         
@@ -244,7 +238,7 @@ module Chat =
                 logger.Info $"[LaunchListenRemoteConnectionsIterationFinished] Launching listening remote subscriptions..."
                 
                 let cmds = Cmd.batch [
-                    Cmd.ofSub <| connectionsSubscription model.TcpListener
+                    Cmd.ofSub <| connectionsSubscription model.Args.NetworkProvider.RemoteListener.Socket
                     Cmd.ofMsg <| WaitThenSend (2000, StartLaunchListenRemoteConnectionsLoop)
                 ]
                 model, cmds
@@ -252,15 +246,15 @@ module Chat =
                 model, Cmd.ofMsg <| WaitThenSend (2000, StartLaunchListenRemoteConnectionsLoop)
         | StartLaunchListenLocalConnectionsLoop ->
             let tryListenLocalConnections _ = async {
-                if model.TcpListener.IsBound
+                if model.Args.NetworkProvider.RemoteListener.IsBound
                 then
-                    if not model.UnixSocketListener.IsBound
+                    if not model.Args.NetworkProvider.LocalListener.IsBound
                     then
                         try
                             logger.Debug $"[StartLaunchListenLocalConnectionsLoop] Try to bind and start listening for unix socket local connections on file {model.UnixSocketFilePath}..."
                             
-                            UnixSocket.tryBindTo model.UnixSocketFilePath model.UnixSocketListener
-                            model.UnixSocketListener.Listen()
+                            model.Args.NetworkProvider.LocalListener.BindTo(model.UnixSocketFilePath)
+                            model.Args.NetworkProvider.LocalListener.StartListen()
                             
                             logger.Info $"[StartLaunchListenLocalConnectionsLoop] Unix socket listener started on file {model.UnixSocketFilePath}"
                             return Result.Ok ()
@@ -288,7 +282,7 @@ module Chat =
                 logger.Info $"[LaunchListenLocalConnectionsIterationFinished] Launching listening local subscriptions..."
                 
                 let cmds = Cmd.batch [
-                    Cmd.ofSub <| connectionsSubscription model.UnixSocketListener
+                    Cmd.ofSub <| connectionsSubscription model.Args.NetworkProvider.LocalListener.Socket
                     Cmd.ofMsg <| WaitThenSend (2000, StartLaunchListenLocalConnectionsLoop)
                 ]
                 model, cmds
@@ -296,7 +290,7 @@ module Chat =
                 model, Cmd.ofMsg <| WaitThenSend (2000, StartLaunchListenLocalConnectionsLoop)
         | StartConnectToLocalPeersLoop ->
             let connectToLocalPeers _ = async {
-                if not model.UnixSocketListener.IsBound
+                if not model.Args.NetworkProvider.LocalListener.IsBound
                 then
                     logger.Debug $"[TryConnectToLocalPeers] Searching for local peers with unix socket open in folder {model.UnixSocketFolder}..."
                     
@@ -349,7 +343,7 @@ module Chat =
             model, msgs
         | StartConnectToRemotePeersLoop ->
             let connectToRemotePeers _ = async {
-                if model.TcpListener.IsBound
+                if model.Args.NetworkProvider.RemoteListener.IsBound
                 then
                     logger.Debug $"[StartConnectToRemotePeersLoop] Defining non-connected known peers..."
                     

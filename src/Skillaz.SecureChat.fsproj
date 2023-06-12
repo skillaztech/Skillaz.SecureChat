@@ -19,6 +19,7 @@
         <Compile Include="ListHelpers.fs" />
         <Compile Include="Logger.fs" />
         <Compile Include="IConfigStorage.fs" />
+        <Compile Include="INetworkProvider.fs" />
         <Compile Include="FileConfiguration.fs" />
         <Compile Include="ChatArgs.fs" />
         <Compile Include="Chat.fs" />

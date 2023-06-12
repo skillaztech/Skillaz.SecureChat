@@ -18,6 +18,8 @@ open NLog
 open Skillaz.SecureChat.ChatArgs
 open Skillaz.SecureChat.Domain.Domain
 open Skillaz.SecureChat.IConfigStorage
+open Skillaz.SecureChat.INetworkProvider
+open Skillaz.SecureChat.P2P
 
 type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
     inherit HostWindow()
@@ -148,6 +150,9 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
             
         logger.Info $"[MainWindow] Unix socket file path for current user selected as {unixSocketFilePath}"
         
+        let tcpRemoteListener = Tcp.listener
+        let unixSocketLocalListener = UnixSocket.listener
+        
         let args = {
             ApplicationLifetime = lifeTime
             ProcessDirectory = currentProcessDirectory
@@ -164,6 +169,24 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
                         us.SecretCode <- userSettings.SecretCode
                         us.Save()
             }
+            NetworkProvider = { // TODO: Think about deduplication code below
+                new INetworkProvider with
+                    member this.RemoteListener = {
+                        new INetworkRemoteListener with
+                            member this.Socket = tcpRemoteListener
+                            member this.IsBound = tcpRemoteListener.IsBound
+                            member this.StartListen() = tcpRemoteListener.Listen()
+                            member this.BindTo ipEndPoint = Tcp.tryBindTo ipEndPoint.Address ipEndPoint.Port tcpRemoteListener
+                    }
+                    member this.LocalListener = {
+                        new INetworkLocalListener with
+                            member this.Socket = unixSocketLocalListener
+                            member this.IsBound = unixSocketLocalListener.IsBound
+                            member this.StartListen() = unixSocketLocalListener.Listen()
+                            member this.BindTo unixSocketPath = UnixSocket.tryBindTo unixSocketPath unixSocketLocalListener
+                    }
+                    
+            } 
         }
         
         Program.mkProgram (fun () -> Chat.init args) Chat.update Chat.view

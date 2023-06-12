@@ -3,6 +3,7 @@
 open Avalonia.Controls.ApplicationLifetimes
 open Skillaz.SecureChat.Domain.Domain
 open Skillaz.SecureChat.IConfigStorage
+open Skillaz.SecureChat.INetworkProvider
     
 type ChatArgs = {
     ApplicationLifetime: IControlledApplicationLifetime
@@ -12,4 +13,5 @@ type ChatArgs = {
     UnixSocketsFolderPath : string
     UnixSocketFilePath : string
     ConfigStorage : IConfigStorage
+    NetworkProvider : INetworkProvider
 }

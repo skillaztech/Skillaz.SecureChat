@@ -1,6 +1,5 @@
 ﻿module Skillaz.SecureChat.IConfigStorage
 
-open Skillaz.SecureChat
 open Skillaz.SecureChat.Domain.Domain
 
 type IConfigStorage =
