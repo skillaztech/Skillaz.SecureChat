@@ -307,11 +307,11 @@ module Chat =
                         otherNonConnectedUnixSocketFiles
                         |> Array.ofList
                         |> Array.Parallel.map (fun socketFile ->
-                            let socket = UnixSocket.client
+                            let socket = model.Args.NetworkProvider.LocalClientGenerate()
                             logger.Debug $"[TryConnectToLocalPeers] Connecting to local unix socket {socketFile}..."
                             
                             try
-                                let unixSocketClient = UnixSocket.connectSocket socket socketFile
+                                let unixSocketClient = model.Args.NetworkProvider.LocalClientConnect socket socketFile
                                 let connectionEndpoint = {
                                     ConnectionId = socketFile
                                     EndPoint = unixSocketClient.RemoteEndPoint
@@ -359,12 +359,12 @@ module Chat =
                         nonConnectedRemotePeers
                         |> Array.ofList
                         |> Array.Parallel.map (fun ep ->
-                            let socket = Tcp.client model.ClientPort
+                            let socket = model.Args.NetworkProvider.RemoteClientGenerateOnPort model.ClientPort
                             
                             logger.Debug $"[StartConnectToRemotePeersLoop] Connecting to remote tcp endpoint {ep} from {socket.LocalEndPoint}..."
                             
                             try
-                                let connectedSocket = Tcp.connectSocket ep.Address ep.Port socket
+                                let connectedSocket = model.Args.NetworkProvider.RemoteClientConnect ep.Address ep.Port socket
                                 let connectionEndpoint = {
                                     ConnectionId = ep.ToString()
                                     EndPoint = ep

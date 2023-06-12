@@ -19,5 +19,9 @@ type INetworkLocalListener =
 
 type INetworkProvider =
     abstract member RemoteListener : INetworkRemoteListener
+    abstract member RemoteClientGenerateOnPort : int -> Socket
+    abstract member RemoteClientConnect : IPAddress -> int -> Socket -> Socket
     abstract member LocalListener : INetworkLocalListener
+    abstract member LocalClientGenerate : unit -> Socket
+    abstract member LocalClientConnect : Socket -> string -> Socket
     

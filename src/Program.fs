@@ -178,6 +178,8 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
                             member this.StartListen() = tcpRemoteListener.Listen()
                             member this.BindTo ipEndPoint = Tcp.tryBindTo ipEndPoint.Address ipEndPoint.Port tcpRemoteListener
                     }
+                    member this.RemoteClientGenerateOnPort port = Tcp.client port
+                    member this.RemoteClientConnect address port socket = Tcp.connectSocket address port socket
                     member this.LocalListener = {
                         new INetworkLocalListener with
                             member this.Socket = unixSocketLocalListener
@@ -185,7 +187,8 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
                             member this.StartListen() = unixSocketLocalListener.Listen()
                             member this.BindTo unixSocketPath = UnixSocket.tryBindTo unixSocketPath unixSocketLocalListener
                     }
-                    
+                    member this.LocalClientGenerate() = UnixSocket.client
+                    member this.LocalClientConnect socket socketFile = UnixSocket.connectSocket socket socketFile
             } 
         }
         
