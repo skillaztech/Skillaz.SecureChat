@@ -16,6 +16,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="AvaloniaComponents\ItemsRepeater.fs" />
         <Compile Include="ListHelpers.fs" />
         <Compile Include="Logger.fs" />
         <Compile Include="IConfigStorage.fs" />
@@ -52,15 +53,19 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia.Desktop" Version="11.0.0-preview2" />
-        <PackageReference Include="Avalonia.Diagnostics" Version="11.0.0-preview2" />
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.0-preview2" />
+        <PackageReference Include="Avalonia.Controls.ItemsRepeater" Version="11.0.0" />
+        <PackageReference Include="Avalonia.Desktop" Version="11.0.0" />
+        <PackageReference Include="Avalonia.Diagnostics" Version="11.0.0" />
+        <PackageReference Include="Avalonia.FuncUI" Version="1.0.0" />
+        <PackageReference Include="Avalonia.FuncUI.Elmish" Version="1.0.0" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.0" />
         <PackageReference Include="FSharp.Configuration" Version="2.0.0" />
         <PackageReference Include="FSharp.Data" Version="6.2.0" />
-        <PackageReference Include="JaggerJo.Avalonia.FuncUI" Version="0.6.0-preview3" />
-        <PackageReference Include="JaggerJo.Avalonia.FuncUI.Elmish" Version="0.6.0-preview3" />
-        <PackageReference Update="FSharp.Core" Version="6.0.7" />
+        <PackageReference Update="FSharp.Core" Version="7.0.300" />
         <PackageReference Include="NLog.FSharp" Version="4.5.3" />
+        <PackageReference Update="Packaging.Targets">
+          <Version>0.1.220</Version>
+        </PackageReference>
     </ItemGroup>
 
     <ItemGroup>

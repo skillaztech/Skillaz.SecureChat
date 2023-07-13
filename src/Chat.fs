@@ -21,6 +21,7 @@ open Avalonia.Controls
 open Skillaz.SecureChat.ChatArgs
 open Skillaz.SecureChat.Domain.Domain
 open Skillaz.SecureChat.P2P
+open Skillaz.SecureChat.ItemsRepeater
 
 module Chat =
     let logger = Logger.nlogger
@@ -215,7 +216,7 @@ module Chat =
                     try
                         logger.Debug $"[StartLaunchListenRemoteConnectionsLoop] Try to bind and start listening for tcp remote connections on port {model.ListenerPort}..."
                         
-                        model.Args.NetworkProvider.RemoteListener.BindTo(IPEndPoint(IPAddress.Any, model.ListenerPort))
+                        model.Args.NetworkProvider.RemoteListener.Bind()
                         model.Args.NetworkProvider.RemoteListener.StartListen()
                         
                         logger.Info $"[StartLaunchListenRemoteConnectionsLoop] Tcp listener started on port {model.ListenerPort}"
@@ -238,7 +239,7 @@ module Chat =
                 logger.Info $"[LaunchListenRemoteConnectionsIterationFinished] Launching listening remote subscriptions..."
                 
                 let cmds = Cmd.batch [
-                    Cmd.ofSub <| connectionsSubscription model.Args.NetworkProvider.RemoteListener.Socket
+                    Cmd.ofEffect <| connectionsSubscription model.Args.NetworkProvider.RemoteListener.Socket
                     Cmd.ofMsg <| WaitThenSend (2000, StartLaunchListenRemoteConnectionsLoop)
                 ]
                 model, cmds
@@ -253,7 +254,7 @@ module Chat =
                         try
                             logger.Debug $"[StartLaunchListenLocalConnectionsLoop] Try to bind and start listening for unix socket local connections on file {model.UnixSocketFilePath}..."
                             
-                            model.Args.NetworkProvider.LocalListener.BindTo(model.UnixSocketFilePath)
+                            model.Args.NetworkProvider.LocalListener.Bind()
                             model.Args.NetworkProvider.LocalListener.StartListen()
                             
                             logger.Info $"[StartLaunchListenLocalConnectionsLoop] Unix socket listener started on file {model.UnixSocketFilePath}"
@@ -282,7 +283,7 @@ module Chat =
                 logger.Info $"[LaunchListenLocalConnectionsIterationFinished] Launching listening local subscriptions..."
                 
                 let cmds = Cmd.batch [
-                    Cmd.ofSub <| connectionsSubscription model.Args.NetworkProvider.LocalListener.Socket
+                    Cmd.ofEffect <| connectionsSubscription model.Args.NetworkProvider.LocalListener.Socket
                     Cmd.ofMsg <| WaitThenSend (2000, StartLaunchListenLocalConnectionsLoop)
                 ]
                 model, cmds
@@ -400,7 +401,7 @@ module Chat =
                 newlyConnected
                 |> List.map (fun c ->
                     logger.Info $"[ClientsConnected] Peer connected {c}. Launch packages subscription..."
-                    Cmd.ofSub <| packagesSubscription c.Client
+                    Cmd.ofEffect <| packagesSubscription c.Client
                 )
             
             { model with Connections = model.Connections @ newlyConnected }, Cmd.batch cmds

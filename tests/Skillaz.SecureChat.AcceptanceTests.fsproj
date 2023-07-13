@@ -10,6 +10,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="DefaultSockets.fs" />
         <Compile Include="ArgsBuilder.fs" />
         <Compile Include="ModelBuilder.fs" />
         <EmbeddedResource Include="Initialize.feature" />
@@ -22,11 +23,14 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
-      <PackageReference Include="Expecto" Version="9.0.4" />
-      <PackageReference Update="FSharp.Core" Version="6.0.7" />
+      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.6.3" />
+      <PackageReference Include="Expecto" Version="10.1.0" />
+      <PackageReference Update="FSharp.Core" Version="7.0.300" />
       <PackageReference Include="TickSpec" Version="2.0.2" />
-      <PackageReference Include="YoloDev.Expecto.TestSdk" Version="0.13.3" />
+      <PackageReference Include="YoloDev.Expecto.TestSdk" Version="0.14.1" />
+      <PackageReference Update="Packaging.Targets">
+        <Version>0.1.220</Version>
+      </PackageReference>
     </ItemGroup>
 
 </Project>

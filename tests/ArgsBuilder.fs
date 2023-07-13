@@ -4,6 +4,8 @@ open System
 open Avalonia.Controls.ApplicationLifetimes
 open Skillaz.SecureChat.ChatArgs
 open Skillaz.SecureChat.IConfigStorage
+open Skillaz.SecureChat.INetworkProvider
+open Skillaz.SecureChat.P2P
 
 let mkArgs = {
     ApplicationLifetime = {
@@ -33,4 +35,25 @@ let mkArgs = {
     }
     UnixSocketsFolderPath = "./tests"
     UnixSocketFilePath = "test.socket"
+    NetworkProvider = {
+                new INetworkProvider with
+                    member this.RemoteListener = {
+                        new INetworkListener with
+                            member this.Socket = DefaultSockets.remoteListener
+                            member this.IsBound = DefaultSockets.remoteListener.IsBound
+                            member this.StartListen() = DefaultSockets.remoteListener.Listen()
+                            member this.Bind() = UnixSocket.tryBindTo "./tests/test.socket" DefaultSockets.remoteListener
+                    }
+                    member this.RemoteClientGenerateOnPort port = Tcp.client port
+                    member this.RemoteClientConnect address port socket = Tcp.connectSocket address port socket
+                    member this.LocalListener = {
+                        new INetworkListener with
+                            member this.Socket = DefaultSockets.localListener
+                            member this.IsBound = DefaultSockets.localListener.IsBound
+                            member this.StartListen() = DefaultSockets.localListener.Listen()
+                            member this.Bind() = UnixSocket.tryBindTo "./tests/test.socket" DefaultSockets.localListener
+                    }
+                    member this.LocalClientGenerate() = UnixSocket.client
+                    member this.LocalClientConnect socket socketFile = UnixSocket.connectSocket socket socketFile
+            } 
 }

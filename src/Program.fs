@@ -172,20 +172,20 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
             NetworkProvider = { // TODO: Think about deduplication code below
                 new INetworkProvider with
                     member this.RemoteListener = {
-                        new INetworkRemoteListener with
+                        new INetworkListener with
                             member this.Socket = tcpRemoteListener
                             member this.IsBound = tcpRemoteListener.IsBound
                             member this.StartListen() = tcpRemoteListener.Listen()
-                            member this.BindTo ipEndPoint = Tcp.tryBindTo ipEndPoint.Address ipEndPoint.Port tcpRemoteListener
+                            member this.Bind() = Tcp.tryBindTo IPAddress.Any appSettings.ListenerTcpPort tcpRemoteListener
                     }
                     member this.RemoteClientGenerateOnPort port = Tcp.client port
                     member this.RemoteClientConnect address port socket = Tcp.connectSocket address port socket
                     member this.LocalListener = {
-                        new INetworkLocalListener with
+                        new INetworkListener with
                             member this.Socket = unixSocketLocalListener
                             member this.IsBound = unixSocketLocalListener.IsBound
                             member this.StartListen() = unixSocketLocalListener.Listen()
-                            member this.BindTo unixSocketPath = UnixSocket.tryBindTo unixSocketPath unixSocketLocalListener
+                            member this.Bind() = UnixSocket.tryBindTo unixSocketFilePath unixSocketLocalListener
                     }
                     member this.LocalClientGenerate() = UnixSocket.client
                     member this.LocalClientConnect socket socketFile = UnixSocket.connectSocket socket socketFile
@@ -195,13 +195,13 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
         Program.mkProgram (fun () -> Chat.init args) Chat.update Chat.view
         |> Program.withHost this
         |> Program.withErrorHandler (fun (msg, e) -> Logger.nlogger.FatalException e $"{msg}")
-        |> Program.run
+        |> Program.runWithAvaloniaSyncDispatch ()
         
 type App() =
     inherit Application()
 
     override this.Initialize() =
-        this.Styles.Add (FluentTheme(baseUri = null, Mode = FluentThemeMode.Light))
+        this.Styles.Add (FluentTheme())
         this.Styles.Load "avares://Skillaz.SecureChat/Styles.xaml"
 
     override this.OnFrameworkInitializationCompleted() =
