@@ -2,12 +2,21 @@ module Skillaz.SecureChat.AcceptanceTests.ArgsBuilder
 
 open System
 open Avalonia.Controls.ApplicationLifetimes
+open Skillaz.SecureChat.AcceptanceTests.TestConfigStorage
 open Skillaz.SecureChat.ChatArgs
+open Skillaz.SecureChat.Domain.Domain
 open Skillaz.SecureChat.IConfigStorage
 open Skillaz.SecureChat.INetworkProvider
 open Skillaz.SecureChat.P2P
 
-let mkArgs = {
+let mkArgs =
+    let userSettings = {
+        UserId = Guid.NewGuid().ToString()
+        Name = Guid.NewGuid().ToString()
+        SecretCode = Random.Shared.Next(100000, 999999)
+    }
+    
+    {
     ApplicationLifetime = {
         new IControlledApplicationLifetime with
         member _.add_Startup(value) = ()
@@ -17,10 +26,7 @@ let mkArgs = {
         member _.Shutdown(exitCode) = ()
     }
     ProcessDirectory = ""
-    ConfigStorage = {
-        new IConfigStorage with
-        member _.SaveUserSettings(userSettings) = ()
-    }
+    ConfigStorage = TestConfigStorage(userSettings)
     AppSettings = {
         MaxChatMessageLength = 3000
         ListenerTcpPort = 20392
@@ -28,11 +34,7 @@ let mkArgs = {
         KnownRemotePeers = []
         LogLevel = "Fatal"
     }
-    UserSettings = {
-        UserId = Guid.NewGuid().ToString()
-        Name = Guid.NewGuid().ToString()
-        SecretCode = Random.Shared.Next(100000, 999999)
-    }
+    UserSettings = userSettings
     UnixSocketsFolderPath = "./tests"
     UnixSocketFilePath = "test.socket"
     NetworkProvider = {

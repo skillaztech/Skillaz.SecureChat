@@ -11,12 +11,16 @@
 
     <ItemGroup>
         <Compile Include="DefaultSockets.fs" />
+        <Compile Include="TestConfigStorage.fs" />
         <Compile Include="ArgsBuilder.fs" />
         <Compile Include="ModelBuilder.fs" />
-        <EmbeddedResource Include="Initialize.feature" />
-        <EmbeddedResource Include="Validation.feature" />
+        <Compile Include="SharedSteps.fs" />
         <Compile Include="InitializeSteps.fs" />
+        <EmbeddedResource Include="Initialize.feature" />
         <Compile Include="ValidationSteps.fs" />
+        <EmbeddedResource Include="Validation.feature" />
+        <Compile Include="SettingsSteps.fs" />
+        <EmbeddedResource Include="Settings.feature" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 

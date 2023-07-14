@@ -3,6 +3,6 @@
   I want to application starts without errors
   
   Scenario: Application starts without errors
-    Given default configuration
+    Given default application configuration
     When application starts
     Then no errors occurs

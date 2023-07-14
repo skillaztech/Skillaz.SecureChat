@@ -8,10 +8,6 @@ open Expecto
 
 type InitializeSteps () =
     
-    [<Given>]
-    member _.``default configuration`` () =
-        ArgsBuilder.mkArgs
-    
     [<When>]
     member _.``application starts`` (args: ChatArgs) =
         try
