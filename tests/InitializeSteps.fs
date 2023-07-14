@@ -2,29 +2,24 @@
 
 open System
 open Skillaz.SecureChat
-open Skillaz.SecureChat.Chat
 open Skillaz.SecureChat.ChatArgs
 open TickSpec
 open Expecto
 
 type InitializeSteps () =
-    let mutable args : ChatArgs option = None
-    let mutable model : Model option = None
-    let mutable exn : Exception option = None
     
     [<Given>]
     member _.``default configuration`` () =
-        args <- Some ArgsBuilder.mkArgs
+        ArgsBuilder.mkArgs
     
     [<When>]
-    member _.``application starts`` () =
+    member _.``application starts`` (args: ChatArgs) =
         try
-            let newModel, _ = Chat.init args.Value
-            model <- Some newModel
+            Chat.init args |> ignore
+            None
         with
-        | e ->
-            exn <- Some e
+        | e -> Some e
         
     [<Then>]
-    member _.``no errors occurs`` () =
+    member _.``no errors occurs`` (exn: Exception option) =
         Expect.isNone exn "No exception should be thrown"
