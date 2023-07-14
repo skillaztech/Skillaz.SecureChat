@@ -22,6 +22,8 @@ let featureTest (resourceName: string) =
 
 [<Tests>]
 let initializeTests = featureTest "Initialize.feature"
+[<Tests>]
+let validationTests = featureTest "Validation.feature"
 
 [<EntryPoint>]
 let main args =

@@ -14,7 +14,9 @@
         <Compile Include="ArgsBuilder.fs" />
         <Compile Include="ModelBuilder.fs" />
         <EmbeddedResource Include="Initialize.feature" />
+        <EmbeddedResource Include="Validation.feature" />
         <Compile Include="InitializeSteps.fs" />
+        <Compile Include="ValidationSteps.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 
