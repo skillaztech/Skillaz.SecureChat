@@ -44,18 +44,17 @@ let mkArgs =
                             member this.Socket = DefaultSockets.remoteListener
                             member this.IsBound = DefaultSockets.remoteListener.IsBound
                             member this.StartListen() = DefaultSockets.remoteListener.Listen()
-                            member this.Bind() = UnixSocket.tryBindTo "./tests/test.socket" DefaultSockets.remoteListener
-                    }
-                    member this.RemoteClientGenerateOnPort port = Tcp.client port
-                    member this.RemoteClientConnect address port socket = Tcp.connectSocket address port socket
+                            member this.Bind() = UnixSocket.tryBindTo "./tests/remote.socket" DefaultSockets.remoteListener
+                            member this.GenerateClient _ = UnixSocket.client
+                            member this.Connect _ socket = UnixSocket.connectSocket socket "./tests/remote.socket"}
                     member this.LocalListener = {
                         new INetworkListener with
                             member this.Socket = DefaultSockets.localListener
                             member this.IsBound = DefaultSockets.localListener.IsBound
                             member this.StartListen() = DefaultSockets.localListener.Listen()
-                            member this.Bind() = UnixSocket.tryBindTo "./tests/test.socket" DefaultSockets.localListener
+                            member this.Bind() = UnixSocket.tryBindTo "./tests/local.socket" DefaultSockets.localListener
+                            member this.GenerateClient _ = UnixSocket.client
+                            member this.Connect _ socket = UnixSocket.connectSocket socket "./tests/local.socket"
                     }
-                    member this.LocalClientGenerate() = UnixSocket.client
-                    member this.LocalClientConnect socket socketFile = UnixSocket.connectSocket socket socketFile
-            } 
+    } 
 }

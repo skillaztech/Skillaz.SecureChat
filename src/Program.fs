@@ -177,18 +177,18 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
                             member this.IsBound = tcpRemoteListener.IsBound
                             member this.StartListen() = tcpRemoteListener.Listen()
                             member this.Bind() = Tcp.tryBindTo IPAddress.Any appSettings.ListenerTcpPort tcpRemoteListener
+                            member this.GenerateClient clientType = match clientType with | ClientType.UnixSocket _ -> failwith "Unsupported" | ClientType.Tcp port -> Tcp.client port
+                            member this.Connect connectionType socket = match connectionType with | ConnectionType.UnixSocket _ -> failwith "Unsupported" | ConnectionType.Tcp endpoint -> Tcp.connectSocket endpoint.Address endpoint.Port socket
                     }
-                    member this.RemoteClientGenerateOnPort port = Tcp.client port
-                    member this.RemoteClientConnect address port socket = Tcp.connectSocket address port socket
                     member this.LocalListener = {
                         new INetworkListener with
                             member this.Socket = unixSocketLocalListener
                             member this.IsBound = unixSocketLocalListener.IsBound
                             member this.StartListen() = unixSocketLocalListener.Listen()
                             member this.Bind() = UnixSocket.tryBindTo unixSocketFilePath unixSocketLocalListener
+                            member this.GenerateClient clientType = match clientType with | ClientType.UnixSocket -> UnixSocket.client | ClientType.Tcp _ -> failwith "Unsupported"
+                            member this.Connect connectionType socket = match connectionType with | ConnectionType.UnixSocket socketFile -> UnixSocket.connectSocket socket socketFile | ConnectionType.Tcp endpoint -> failwith "Unsupported"
                     }
-                    member this.LocalClientGenerate() = UnixSocket.client
-                    member this.LocalClientConnect socket socketFile = UnixSocket.connectSocket socket socketFile
             } 
         }
         

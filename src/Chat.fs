@@ -20,6 +20,7 @@ open Avalonia.FuncUI
 open Avalonia.Controls
 open Skillaz.SecureChat.ChatArgs
 open Skillaz.SecureChat.Domain.Domain
+open Skillaz.SecureChat.INetworkProvider
 open Skillaz.SecureChat.P2P
 open Skillaz.SecureChat.ItemsRepeater
 
@@ -308,11 +309,11 @@ module Chat =
                         otherNonConnectedUnixSocketFiles
                         |> Array.ofList
                         |> Array.Parallel.map (fun socketFile ->
-                            let socket = model.Args.NetworkProvider.LocalClientGenerate()
+                            let socket = model.Args.NetworkProvider.LocalListener.GenerateClient ClientType.UnixSocket
                             logger.Debug $"[TryConnectToLocalPeers] Connecting to local unix socket {socketFile}..."
                             
                             try
-                                let unixSocketClient = model.Args.NetworkProvider.LocalClientConnect socket socketFile
+                                let unixSocketClient = model.Args.NetworkProvider.LocalListener.Connect (ConnectionType.UnixSocket socketFile) socket
                                 let connectionEndpoint = {
                                     ConnectionId = socketFile
                                     EndPoint = unixSocketClient.RemoteEndPoint
@@ -360,12 +361,12 @@ module Chat =
                         nonConnectedRemotePeers
                         |> Array.ofList
                         |> Array.Parallel.map (fun ep ->
-                            let socket = model.Args.NetworkProvider.RemoteClientGenerateOnPort model.ClientPort
+                            let socket = model.Args.NetworkProvider.RemoteListener.GenerateClient <| ClientType.Tcp model.ClientPort
                             
                             logger.Debug $"[StartConnectToRemotePeersLoop] Connecting to remote tcp endpoint {ep} from {socket.LocalEndPoint}..."
                             
                             try
-                                let connectedSocket = model.Args.NetworkProvider.RemoteClientConnect ep.Address ep.Port socket
+                                let connectedSocket = model.Args.NetworkProvider.RemoteListener.Connect (ConnectionType.Tcp ep) socket
                                 let connectionEndpoint = {
                                     ConnectionId = ep.ToString()
                                     EndPoint = ep
