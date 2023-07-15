@@ -47,8 +47,8 @@ type SettingsSteps () =
     
     [<Then>]
     member _.``saved secret code should be equal to (.*)`` (secretCode: SecretCode) (configStorage: TestConfigStorage) =
-        Expect.equal configStorage.UserSettings.SecretCode secretCode ""
+        Expect.equal configStorage.UserSettings.SecretCode secretCode "Secret code is not equal to expected"
     
     [<Then>]
     member _.``saved username should be equal to (.*)`` (userName: UserName) (configStorage: TestConfigStorage) =
-        Expect.equal configStorage.UserSettings.Name userName ""
+        Expect.equal configStorage.UserSettings.Name userName "Username is not equal to expected"

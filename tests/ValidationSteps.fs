@@ -23,12 +23,12 @@ type ValidationSteps () =
         
     [<Then>]
     member _.``validation errors count should be (.*)`` (errorsCount: int) (model: Model) =
-        Expect.hasLength model.UserNameValidationErrors errorsCount ""
+        Expect.hasLength model.UserNameValidationErrors errorsCount "Validation errors count not match expected value"
         
     [<Then>]
     member _.``username should not be changed`` (model: Model) =
-        Expect.notEqual model.UserName newUserName ""
+        Expect.notEqual model.UserName newUserName "Username changed"
         
     [<Then>]
     member _.``username should be changed`` (model: Model) =
-        Expect.equal model.UserName newUserName ""
+        Expect.equal model.UserName newUserName "User name not changed"

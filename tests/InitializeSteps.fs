@@ -18,4 +18,4 @@ type InitializeSteps () =
         
     [<Then>]
     member _.``no errors occurs`` (exn: Exception option) =
-        Expect.isNone exn "No exception should be thrown"
+        Expect.isNone exn "Exception throws when app starts"
