@@ -192,10 +192,10 @@ type MainWindow(lifeTime:IControlledApplicationLifetime) as this =
             } 
         }
         
-        Program.mkProgram Chat.init Chat.update Chat.view
+        Program.mkProgram (fun () -> Chat.init args) Chat.update Chat.view
         |> Program.withHost this
         |> Program.withErrorHandler (fun (msg, e) -> Logger.nlogger.FatalException e $"{msg}")
-        |> Program.runWithAvaloniaSyncDispatch args
+        |> Program.runWithAvaloniaSyncDispatch ()
         
 type App() =
     inherit Application()

@@ -31,14 +31,15 @@ type SettingsSteps () =
         let us = { args.UserSettings with Name = userName }
         startAppWith args us
     
-    [<Given>]
-    member _.``secret code set by user is (.*)`` (secretCode: SecretCode) (model: Model, configStorage: TestConfigStorage) =
-        { model with SecretCode = secretCode }, configStorage
+    [<When>]
+    member _.``user sets secret code to (.*)`` (secretCode: SecretCode) (model: Model, configStorage: TestConfigStorage) =
+        Chat.update (Msg.SecretCodeChanged secretCode) model
+        |> Cmd.execm, configStorage
     
-    
-    [<Given>]
-    member _.``username set by user is (.*)`` (userName: UserName) (model: Model, configStorage: TestConfigStorage) =
-        { model with UserName = userName }, configStorage
+    [<When>]
+    member _.``user sets username to (.*)`` (userName: UserName) (model: Model, configStorage: TestConfigStorage) =
+        Chat.update (Msg.UserNameChanged userName) model
+        |> Cmd.execm, configStorage
     
     [<When>]
     member _.``user saves user settings`` (model: Model, configStorage: TestConfigStorage) =

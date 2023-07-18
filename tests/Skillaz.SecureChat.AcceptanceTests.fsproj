@@ -11,7 +11,9 @@
 
     <ItemGroup>
         <Compile Include="DefaultSockets.fs" />
+        <Compile Include="DefaultDispatchers.fs" />
         <Compile Include="TestConfigStorage.fs" />
+        <Compile Include="Cmd.fs" />
         <Compile Include="ArgsBuilder.fs" />
         <Compile Include="ModelBuilder.fs" />
         <Compile Include="SharedSteps.fs" />
