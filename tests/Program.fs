@@ -21,14 +21,13 @@ let featureTest (resourceName: string) =
     |> testListFromFeature
 
 [<Tests>]
-let initializeTests = featureTest "Initialize.feature"
-
-[<Tests>]
-let validationTests = featureTest "Validation.feature"
-
-[<Tests>]
-let settingsTests = featureTest "Settings.feature"
+let allTests =
+    testList "All" [
+        featureTest "Initialize.feature"
+        featureTest "Validation.feature"
+        featureTest "Settings.feature"
+    ]
 
 [<EntryPoint>]
 let main args =
-    runTestsInAssemblyWithCLIArgs [] args
+    runTestsInAssemblyWithCLIArgs [CLIArguments.Summary] args
