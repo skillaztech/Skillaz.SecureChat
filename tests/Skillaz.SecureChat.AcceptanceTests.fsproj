@@ -17,12 +17,12 @@
         <Compile Include="ArgsBuilder.fs" />
         <Compile Include="ModelBuilder.fs" />
         <Compile Include="SharedSteps.fs" />
-        <Compile Include="InitializeSteps.fs" />
-        <EmbeddedResource Include="Initialize.feature" />
-        <Compile Include="ValidationSteps.fs" />
-        <EmbeddedResource Include="Validation.feature" />
-        <Compile Include="SettingsSteps.fs" />
-        <EmbeddedResource Include="Settings.feature" />
+        <Compile Include="Features\Initialize\InitializeSteps.fs" />
+        <EmbeddedResource Include="Features\Initialize\Initialize.feature" />
+        <Compile Include="Features\Settings\SettingsSteps.fs" />
+        <EmbeddedResource Include="Features\Settings\Settings.feature" />
+        <Compile Include="Features\Validation\ValidationSteps.fs" />
+        <EmbeddedResource Include="Features\Validation\Validation.feature" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 

@@ -16,7 +16,7 @@ let testListFromFeature (feature: TickSpec.Feature) : Expecto.Test =
     |> testSequenced
 
 let featureTest (resourceName: string) =
-    (assembly.GetName().Name + "." + resourceName)
+    (assembly.GetName().Name + ".Features." + resourceName.Replace(".feature", ".") + resourceName)
     |> featureFromEmbeddedResource
     |> testListFromFeature
 
